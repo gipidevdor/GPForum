@@ -1,0 +1,33 @@
+%# Form-free reaction presentation. No session, command id or permission is read.
+% my %label_key = (heart => 'forum.reaction_heart', laugh => 'forum.reaction_laugh', celebrate => 'forum.reaction_celebrate', think => 'forum.reaction_think');
+% my $group = t('forum.reactions');
+% my $group_open = begin
+<div class="post__reactions" role="group" aria-label="<%= $group %>">
+% end
+% $fragments->{reaction_group} = $group_open->();
+% my $total = 0; $total += $_->{count} // 0 for @{$reactions};
+% my $summary = begin
+<summary><%= $group %><% if ($total) { %> <span class="post__reaction-count"><%= $total %></span><% } %><% if (grep { $_->{reacted} } @{$reactions}) { %><%= ui_icon('check') %><% } %></summary>
+% end
+% $fragments->{reaction_summary} = $summary->();
+% for my $reaction (@{$reactions}) {
+%   my $name = $reaction->{reaction};
+%   my $label = t($label_key{$name});
+%   my $aria = $reaction->{reacted} ? t('forum.remove_reaction', {reaction => $label}) : t('forum.react_with', {reaction => $label});
+%   my $accessible = $aria . ($reaction->{count} ? q{, } . $group . q{: } . $reaction->{count} : q{});
+%   my $route = $reaction->{reacted} ? 'post_unreact' : 'post_react';
+%   my $path = $paths->{$route . q{:} . $name} // q{};
+%   my $icon = ui_icon('emote-' . $name);
+%   my $open = begin
+<button type="submit" formaction="<%= $path %>" class="post__reaction" aria-pressed="<%= $reaction->{reacted} ? 'true' : 'false' %>" aria-label="<%= $accessible %>" title="<%= $aria %>"
+%   end
+%   $fragments->{'reaction_open:' . $name} = $open->();
+%   my $body = begin
+<%= $icon %><% if ($reaction->{reacted}) { %><span class="post__reaction-state" aria-hidden="true"><%= ui_icon('check') %></span><% } %><% if ($reaction->{count}) { %><span class="post__reaction-count"><%= $reaction->{count} %></span><% } %>
+%   end
+%   $fragments->{'reaction_body:' . $name} = $body->();
+%   my $static = begin
+<span class="post__reaction post__reaction--static"><%= $icon %><span class="visually-hidden"><%= $label %></span><span class="post__reaction-count"><%= $reaction->{count} %></span></span>
+%   end
+%   $fragments->{'reaction_static:' . $name} = $static->();
+% }

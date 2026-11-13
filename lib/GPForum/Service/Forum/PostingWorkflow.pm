@@ -1,0 +1,1313 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Forum::PostingWorkflow;
+
+use Const::Fast;
+use Mojo::Base 'GPForum::Base', -signatures, -async_await;
+use v5.40;
+
+use GPForum::Domain::Post;
+use GPForum::Domain::Thread;
+use GPForum::Infrastructure::Row qw(column_of);
+use GPForum::Infrastructure::ResultRow::Post;
+use GPForum::Infrastructure::ResultRow::Thread;
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::Text qw(trimmed);
+use GPForum::Service::Forum::PostingCommand;
+use GPForum::Service::Forum::PostingNative;
+use GPForum::Service::Operations::CommandIdempotency;
+use GPForum::Service::Forum::Viewer;
+use GPForum::Service::Forum::Visibility;
+use GPForum::Log;
+use GPForum::X::Unavailable;
+
+our $VERSION = '0.001';
+
+# What each command writes: the store whose parameters it takes (post or
+# thread), the words its failure is logged with, and whether the mentions
+# in the stored post are recorded with it (a new thread, a reply and a post
+# edit).
+const my %STORE => (
+    'post.delete'    => [ 'post',   'post delete',    0 ],
+    'post.edit'      => [ 'post',   'post edit',      1 ],
+    'post.restore'   => [ 'post',   'post restore',   0 ],
+    'reply.create'   => [ 'post',   'reply create',   1 ],
+    'thread.create'  => [ 'thread', 'thread create',  1 ],
+    'thread.delete'  => [ 'thread', 'thread delete',  0 ],
+    'thread.edit'    => [ 'thread', 'thread edit',    0 ],
+    'thread.move'    => [ 'thread', 'thread move',    0 ],
+    'thread.restore' => [ 'thread', 'thread restore', 0 ],
+);
+
+const my $MAX_MENTIONS => 10;
+const my $REPLY        => 'reply.create';
+
+# A store failure raised inside api.forum_create_reply: the server names
+# the store's function in the error's context (ADR 0126).
+const my $STORE_FUNCTION => qr/\b api[.]core_forum_store_reply_v1 \b/msx;
+
+# A body without an at sign mentions no one (Community::MentionExtractor).
+const my $MENTION_SIGN => q{@};
+
+__PACKAGE__->requires(
+    qw(category_reader command_idempotency mention_store post_composer
+      post_store thread_composer thread_detail_reader thread_store)
+);
+
+has codec  => sub { return GPForum::Service::Forum::PostingCommand->new; };
+has logger => undef;    # optional: without it nothing is logged
+
+# ADR 0133: screens new threads, replies and edits against the watched
+# words and the link rule (Forum::PostingAutomod).
+has automod => undef;    # optional: without it nothing is screened
+
+# ADR 0134: holds a new member's first posts, and flagged ones when staff
+# ask, for review (Forum::PostingReview).
+has review => undef;    # optional: without it nothing is held
+
+# ADR 0126, ADR 0177: a command's log and its write run in one call --
+# api.forum_create_reply for a reply, api.forum_write_command for the rest
+# -- on the post store's call layer. Perl reads, checks and composes; the
+# call is planned once and run by PostingNative, on the pooled connections
+# or, for a blocking caller, settled on the blocking layer.
+has functions => sub ($self) {
+    my $store = $self->post_store;
+    return blessed $store
+      && $store->can('functions') ? $store->functions : undef;
+};
+
+sub create_thread ( $self, $input ) {
+    return $self->_screened( 'thread.create', $input,
+        sub ($screened) { return $self->_write_thread($screened); } );
+}
+
+sub async_call_p (
+    $self, $method, $arguments,
+    $context = undef,
+    $cancelled = undef
+  )
+{
+    return GPForum::Service::Forum::PostingNative->new( workflow => $self )
+      ->call_p( $method, $arguments, $context, $cancelled );
+}
+
+sub create_reply ( $self, $input ) {
+    return $self->_screened( $REPLY, $input,
+        sub ($screened) { return $self->_write_reply($screened); } );
+}
+
+# ADR 0134: publishes a post staff approved, as its author's command: the
+# text was screened when it was held, so it is neither screened nor held
+# again. The command id is the one the author submitted.
+sub publish_reviewed ( $self, $type, $input ) {
+    return $self->_write_thread($input) if $type eq 'thread.create';
+    return $self->_write_reply($input)  if $type eq $REPLY;
+
+    return _result( status => 'invalid', error => 'not a held command' );
+}
+
+# publish_reviewed on the worker's pooled asynchronous connections. With
+# $scope -- the call layer of the review store's transaction, which holds
+# the held post's lock -- the command, its post and its mentions commit with
+# the decision, as the blocking path's do under the store's transaction.
+async sub publish_reviewed_p (
+    $self, $type, $input,
+    $context = undef,
+    $scope = undef
+  )
+{
+    # On a blocking layer -- an approval run as its blocking twin -- the
+    # plan is composed in the process: a child of the CPU lane would leave
+    # a promise pending, which the blocking layer refuses (ADR 0177).
+    return $self->publish_reviewed( $type, $input )
+      if ( $type ne 'thread.create' && $type ne $REPLY )
+      || ( $scope // $self->_functions )->blocking;
+
+    return await GPForum::Service::Forum::PostingNative->new(
+        workflow => $self,
+        scope    => $scope
+    )->publish_p( $type, $input, $context );
+}
+
+sub _write_thread ( $self, $input ) {
+    return $self->_run( 'thread.create', $input,
+        sub { return $self->_create_thread_once($input); } );
+}
+
+sub _write_reply ( $self, $input ) {
+    return $self->_create_reply_by_function($input);
+}
+
+sub edit_thread ( $self, $input ) {
+    return $self->_screened(
+        'thread.edit',
+        $input,
+        sub ($screened) {
+            return $self->_run( 'thread.edit', $screened,
+                sub { return $self->_edit_thread_once($screened); } );
+        }
+    );
+}
+
+sub move_thread ( $self, $input ) {
+    return $self->_run( 'thread.move', $input,
+        sub { return $self->_move_thread_once($input); } );
+}
+
+sub delete_thread ( $self, $input ) {
+    return $self->_run( 'thread.delete', $input,
+        sub { return $self->_delete_thread_once($input); } );
+}
+
+sub restore_thread ( $self, $input ) {
+    return $self->_run( 'thread.restore', $input,
+        sub { return $self->_restore_thread_once($input); } );
+}
+
+sub edit_post ( $self, $input ) {
+    return $self->_screened(
+        'post.edit',
+        $input,
+        sub ($screened) {
+            return $self->_run( 'post.edit', $screened,
+                sub { return $self->_edit_post_once($screened); } );
+        }
+    );
+}
+
+# ADR 0133: the write as the automod rules leave it -- refused, rewritten,
+# or run with its decisions recorded in its own transaction.
+#
+# A native plan (PostingNative) is handed the screen already made on the
+# pooled connections; its write to settle comes back as the plan marked to
+# settle, and the write and its decisions then commit together there.
+sub _screened ( $self, $type, $input, $write ) {
+    my $automod = $self->automod;
+    return $write->($input) if !$automod;
+
+    my $screen = $self->{native_screen} // $automod->screen( $type, $input );
+    return $screen->{refusal} if $screen->{refusal};
+    return $self->_held( $type, $screen )
+      if $screen->{hold} && $self->review;
+    return $write->( $screen->{input} ) if !$screen->{settle};
+    if ( $self->{native_plan} ) {
+        my $plan = $write->( $screen->{input} );
+        if ( $plan->{native_kind} ) { $plan->{settle} = 1; }
+        return $plan;
+    }
+
+    return $automod->settle( $type, $screen, $write );
+}
+
+# ADR 0134: a post held for review is checked as its write would be --
+# the thread or category as the author reads it, the composer's answer --
+# so the author hears at once what is wrong with it, and is then kept for
+# staff instead of written.
+sub _held ( $self, $type, $screen ) {
+    my $input = $screen->{input};
+    return _missing_command_id_result($input) if !length _command_id($input);
+
+    my $checked =
+        $type eq $REPLY
+      ? $self->_reply_checked_for_review($input)
+      : $self->_thread_checked_for_review($input);
+    return $checked if !$checked->{ok};
+    return {
+        native_kind => 'hold',
+        type        => $type,
+        command     => $checked->{command},
+      }
+      if $self->{native_plan};
+
+    return $self->review->hold( $type, $screen, $checked->{command} );
+}
+
+sub _reply_checked_for_review ( $self, $input ) {
+    my $thread =
+      $self->thread_detail_reader->find_thread( $input->{thread_id},
+        _viewer($input) );
+    my $refused = _refused( GPForum::Domain::Thread->reply_refusal($thread) );
+    return $refused if $refused;
+
+    return $self->_composed_for_review(
+        $self->post_composer->prepare(
+            {
+                allocate_position => 1,
+                author_user_id    => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                idempotency_key  => _command_id($input),
+                thread_id        => $input->{thread_id},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $thread,
+                    qw(space_visibility category_visibility visibility)
+                ),
+            }
+        )
+    );
+}
+
+sub _thread_checked_for_review ( $self, $input ) {
+    my $category_id = trimmed( $input->{category_id} );
+    my $category;
+    if ( length $category_id ) {
+        $category =
+          $self->category_reader->find_category( $category_id,
+            _viewer($input) );
+        return _result( status => 'not_found', error => 'category not found' )
+          if !$category;
+    }
+
+    return $self->_composed_for_review(
+        $self->thread_composer->prepare(
+            {
+                author_user_id => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                category_id => $category_id,
+                idempotency_key  => _command_id($input),
+                title            => $input->{title},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $category, qw(space_visibility visibility)
+                ),
+            }
+        )
+    );
+}
+
+sub _composed_for_review ( $self, $prepared ) {
+    return _result( status => 'invalid', prepared => $prepared )
+      if !$prepared->{ok};
+
+    return { ok => 1, command => $prepared->{command} };
+}
+
+sub delete_post ( $self, $input ) {
+    return $self->_run( 'post.delete', $input,
+        sub { return $self->_delete_post_once($input); } );
+}
+
+sub restore_post ( $self, $input ) {
+    return $self->_run( 'post.restore', $input,
+        sub { return $self->_restore_post_once($input); } );
+}
+
+sub _create_thread_once ( $self, $input ) {
+    my $category_id = trimmed( $input->{category_id} );
+    my $category;
+    if ( length $category_id ) {
+        $category =
+          $self->category_reader->find_category( $category_id,
+            _viewer($input) );
+        return _result( status => 'not_found', error => 'category not found' )
+          if !$category;
+    }
+
+    return $self->_store_composed(
+        'thread.create',
+        $self->thread_composer->prepare(
+            {
+                author_user_id => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                category_id => $category_id,
+                idempotency_key  => _command_id($input),
+                title            => $input->{title},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $category, qw(space_visibility visibility)
+                ),
+            }
+        )
+    );
+}
+
+# The reply as the function runs it. Perl does what is not the database's:
+# the request's fingerprint, the ids and the clock the command log draws,
+# the workflow's check before the lock (the thread as the author reads it)
+# and the composer. Their answer, when they refuse, is the response the
+# function records; otherwise the function stores the post under the lock
+# and records its answer. A failure of either step is answered as the Perl
+# path answers it: command log failed, or post store failed when the store's
+# own statements raised.
+sub _create_reply_by_function ( $self, $input ) {
+    my $key = _command_id($input);
+    return _missing_command_id_result($input) if !length $key;
+
+    my ( $call, $prepared );
+    try {
+        ( $call, $prepared ) = $self->_reply_call( $key, $input );
+    }
+    catch ($error) {
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+
+    return $self->_planned(
+        {
+            native_kind => 'reply',
+            type        => $REPLY,
+            call        => $call,
+            prepared    => $prepared
+        }
+    );
+}
+
+# A planned call: the plan itself while PostingNative prepares one, else the
+# call run as PostingNative runs it, settled on the blocking layer.
+sub _planned ( $self, $plan ) {
+    return $plan if $self->{native_plan};
+
+    return GPForum::Infrastructure::SqlFunction->settled(
+        GPForum::Service::Forum::PostingNative->new( workflow => $self )
+          ->written_p(
+            $plan, $self->_functions->blocking_layer,
+            undef, GPForum::Log->request_context
+          )
+    );
+}
+
+# The call's parameters, and the composer's answer when it ran. The ids and
+# the time come in the order the Perl path draws them: the command row's
+# id and correlation id and its time, then the composer's, then the store's.
+sub _reply_call ( $self, $key, $input ) {
+    my $log  = $self->command_idempotency;
+    my %call = (
+        actor_id               => _nullable( $input->{author_user_id} ),
+        command_id             => $log->id_service->uuid,
+        command_correlation_id => $log->id_service->uuid,
+        command_at             => $log->clock->now_iso8601,
+        command_type           => $REPLY,
+        idempotency_key        => $key,
+        request_hash           =>
+          $log->request_hash( $self->codec->request( $REPLY, $input ) ),
+        store_refusals => $self->_store_refusals,
+        draft_id       => _nullable( $input->{draft_id} ),
+        draft_revision => $input->{draft_revision},
+    );
+
+    my $thread =
+      $self->thread_detail_reader->find_thread( $input->{thread_id},
+        _viewer($input) );
+    my $answer = _refused( GPForum::Domain::Thread->reply_refusal($thread) );
+    my $prepared;
+    if ( !$answer ) {
+        $prepared = $self->post_composer->prepare(
+            {
+                allocate_position => 1,
+                author_user_id    => $input->{author_user_id},
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                idempotency_key  => $key,
+                thread_id        => $input->{thread_id},
+                visibility       => $input->{visibility},
+                visibility_floor => _effective_visibility(
+                    $thread,
+                    qw(space_visibility category_visibility visibility)
+                ),
+            }
+        );
+        if ( !$prepared->{ok} ) {
+            $answer = _result( status => 'invalid', prepared => $prepared );
+        }
+    }
+
+    $call{answer} = $answer ? $self->codec->response( $REPLY, $answer ) : undef;
+    my $store =
+      $answer
+      ? { map { $_ => undef } $self->post_store->reply_parameter_names }
+      : $self->post_store->reply_parameters( $prepared->{command} );
+
+    # The command's own key wins over the store's undefined one.
+    return ( { %{$store}, %call }, $prepared );
+}
+
+# The response the command log keeps for each refusal the store can give
+# under its lock, by the code the function answers with: the words and the
+# status the Perl path records.
+sub _store_refusals ($self) {
+    return {
+        map {
+            $_ => $self->codec->response( $REPLY,
+                _refused( GPForum::Domain::Thread->reply_refusal_words($_) ) )
+        } GPForum::Domain::Thread->reply_refusal_codes
+    };
+}
+
+# The command whose body may mention someone, when the type records the
+# mentions of its post (a new thread, a reply, a post edit): its call and
+# their recording then share one transaction. undef for any other.
+sub mentioning ( $self, $type, $call, $prepared ) {
+    my ( undef, undef, $mentions ) = @{ $STORE{$type} };
+    return undef if !$mentions;
+    my $command =
+      $type eq $REPLY
+      ? ( $prepared && $prepared->{ok} ? $prepared->{command} : undef )
+      : $call->{command};
+    return undef if !$command;
+
+    return
+      index( $command->{body}{body_source} // q{}, $MENTION_SIGN ) < 0
+      ? undef
+      : $command;
+}
+
+# A stored write, not a replay of one, has its mentions recorded.
+sub _records_mentions ($result) {
+    return $result->{ok} && !$result->{idempotent} ? 1 : 0;
+}
+
+# The function's row as the result the Perl path answers: a replay of the
+# stored response, a conflict in the command log's words, or the answer it
+# recorded -- the post stored, the composer's invalid answer, or a refusal.
+sub reply_result ( $self, $row, $prepared ) {
+    my $outcome = $row->{outcome} // q{};
+    return $self->codec->replay( $REPLY, $row->{response} )
+      if $outcome eq 'replayed';
+    if ( $outcome ne 'recorded' ) {
+        return _result(
+            status => 'conflict',
+            error  =>
+              GPForum::Service::Operations::CommandIdempotency->refusal_error(
+                $outcome),
+        );
+    }
+
+    my $status = $row->{response}{status} // q{};
+    if ( $status eq 'ok' ) {
+        my $result = _result(
+            status => 'ok',
+            stored => $self->post_store->reply_answer($row),
+        );
+        $result->{prepared} = $prepared;
+        return $result;
+    }
+    return _result( status => 'invalid', prepared => $prepared )
+      if $status eq 'invalid';
+
+    return _result( status => 'conflict', error => $row->{response}{error} )
+      if $status eq 'conflict';
+
+    return _refused( $row->{response}{error} );
+}
+
+sub _edit_thread_once ( $self, $input ) {
+    my ( undef, $refused ) = $self->_thread_checked( $input, 'edit_refusal' );
+    return $refused if $refused;
+
+    return $self->_store_composed(
+        'thread.edit',
+        $self->thread_composer->prepare_title(
+            {
+                editor_user_id  => $input->{author_user_id},
+                idempotency_key => _command_id($input),
+                thread_id       => $input->{thread_id},
+                title           => $input->{title},
+            }
+        )
+    );
+}
+
+# Only the thread's author may move it, and only into a category they can
+# read.
+sub _move_thread_once ( $self, $input ) {
+    my ( undef, $refused ) = $self->_thread_checked( $input, 'edit_refusal' );
+    return $refused if $refused;
+
+    my $category_id = trimmed( $input->{category_id} );
+    return _result( status => 'not_found', error => 'category not found' )
+      if length $category_id
+      && !$self->category_reader->find_category( $category_id,
+        _viewer($input) );
+
+    return $self->_store_composed(
+        'thread.move',
+        $self->thread_composer->prepare_move(
+            {
+                category_id     => $input->{category_id},
+                editor_user_id  => $input->{author_user_id},
+                idempotency_key => _command_id($input),
+                thread_id       => $input->{thread_id},
+            }
+        )
+    );
+}
+
+sub _delete_thread_once ( $self, $input ) {
+    my ( $thread, $refused ) = $self->_thread_checked( $input, 'edit_refusal' );
+    return $refused if $refused;
+
+    return $self->_call_store(
+        'thread.delete',
+        {
+            idempotency_key => _command_id($input),
+            thread          => {
+                category_id => column_of( $thread, 'category_id' ),
+                deleted_by  => trimmed( $input->{author_user_id} ),
+                thread_id   => $input->{thread_id},
+            },
+        }
+    );
+}
+
+sub _restore_thread_once ( $self, $input ) {
+    my ( $thread, $refused ) =
+      $self->_thread_checked( $input, 'restore_refusal' );
+    return $refused if $refused;
+
+    return $self->_call_store(
+        'thread.restore',
+        {
+            idempotency_key => _command_id($input),
+            thread          => {
+                author_user_id => column_of( $thread, 'author_user_id' ),
+                category_id    => column_of( $thread, 'category_id' ),
+                restored_by    => trimmed( $input->{author_user_id} ),
+                thread_id      => $input->{thread_id},
+            },
+        }
+    );
+}
+
+sub _edit_post_once ( $self, $input ) {
+    my ( $post, $refused ) = $self->_post_checked( $input, 'edit_refusal' );
+    return $refused if $refused;
+
+    return $self->_store_composed(
+        'post.edit',
+        $self->post_composer->prepare_revision(
+            {
+                body_hash   => $self->codec->body_hash( $input->{body_source} ),
+                body_source => $input->{body_source},
+                edit_reason => $input->{edit_reason},
+                editor_user_id  => $input->{author_user_id},
+                idempotency_key => _command_id($input),
+                post_id         => $input->{post_id},
+                thread_id       => column_of( $post, 'thread_id' ),
+            }
+        )
+    );
+}
+
+sub _delete_post_once ( $self, $input ) {
+    my ( $post, $refused ) = $self->_post_checked( $input, 'edit_refusal' );
+    return $refused if $refused;
+
+    return $self->_call_store(
+        'post.delete',
+        {
+            idempotency_key => _command_id($input),
+            post            => {
+                deleted_by => trimmed( $input->{author_user_id} ),
+                post_id    => $input->{post_id},
+                thread_id  => column_of( $post, 'thread_id' ),
+            },
+        }
+    );
+}
+
+sub _restore_post_once ( $self, $input ) {
+    my ( $post, $refused ) = $self->_post_checked( $input, 'restore_refusal' );
+    return $refused if $refused;
+
+    return $self->_call_store(
+        'post.restore',
+        {
+            idempotency_key => _command_id($input),
+            post            => {
+                author_user_id => column_of( $post, 'author_user_id' ),
+                post_id        => $input->{post_id},
+                restored_by    => trimmed( $input->{author_user_id} ),
+                thread_id      => column_of( $post, 'thread_id' ),
+            },
+        }
+    );
+}
+
+# The thread as the author reads it, and the refusal of a GPForum::Domain::
+# Thread rule for it as a result, or undef.
+sub _thread_checked ( $self, $input, $rule ) {
+    my $thread =
+      $self->thread_detail_reader->find_thread( $input->{thread_id},
+        _viewer($input) );
+
+    return (
+        $thread,
+        _refused(
+            GPForum::Domain::Thread->$rule(
+                $thread, trimmed( $input->{author_user_id} )
+            )
+        )
+    );
+}
+
+# The post, its thread as the author reads it, and the refusal of a
+# GPForum::Domain::Post rule for them as a result, or undef.
+sub _post_checked ( $self, $input, $rule ) {
+    my $id = $input->{post_id};
+    my $context =
+      defined $id && length $id
+      ? $self->_functions->row( 'forum_post_context', { post_id => $id } )
+      : undef;
+    $context ||= {};
+    my $post =
+      GPForum::Infrastructure::ResultRow::Post->from( $context->{post} );
+    my $thread = $self->thread_detail_reader->visible_thread_row(
+        GPForum::Infrastructure::ResultRow::Thread->from( $context->{thread} ),
+        _viewer($input),
+    );
+
+    return (
+        $post,
+        _refused(
+            GPForum::Domain::Post->$rule(
+                $post, $thread, trimmed( $input->{author_user_id} )
+            )
+        )
+    );
+}
+
+# A refusal of the rules in GPForum::Domain, as a result with the status it
+# means; undef when there is none.
+sub _refused ($error) {
+    return undef if !$error;
+
+    return _result(
+        status => GPForum::Domain::Post->status_of($error),
+        error  => $error
+    );
+}
+
+# Once per command id (ADR 0126): the workflow's checks and composition give
+# the store's command, or the answer that refuses it, and
+# api.forum_write_command keeps the command log's row with the request's
+# fingerprint, writes under the store's locks with its events, audit and
+# outbox rows, and records the answer -- a repeat of the request replays
+# it, another request under the same id is a conflict.
+sub _run ( $self, $type, $input, $run ) {
+    my $key = _command_id($input);
+    return _missing_command_id_result($input) if !length $key;
+    my ( $call, $prepared );
+    try {
+        my $log         = $self->command_idempotency;
+        my $command_log = {
+            actor_id               => _nullable( $input->{author_user_id} ),
+            command_id             => $log->id_service->uuid,
+            command_correlation_id => $log->id_service->uuid,
+            command_at             => $log->clock->now_iso8601,
+            command_type           => $type,
+            idempotency_key        => $key,
+            request_hash           =>
+              $log->request_hash( $self->codec->request( $type, $input ) ),
+        };
+        my $answer = $run->();
+        $prepared = $answer->{prepared};
+        my $store = $self->_function_store($type);
+        my $values =
+          $answer->{pending}
+          ? $store->function_parameters( _function_type($type),
+            $answer->{command} )
+          : {
+            store_type => _function_type($type),
+            command    => undef,
+            record     => undef
+          };
+        $call = {
+            %{$values},
+            draft_id       => _nullable( $input->{draft_id} ),
+            draft_revision => $input->{draft_revision},
+            log            => $command_log,
+            answer         => $answer->{pending}
+            ? undef
+            : $self->codec->response( $type, $answer )
+        };
+    }
+    catch ($error) {
+        $self->_log( error => "command log failed: $error" );
+        return _result( status => 'failed', error => 'command log failed' );
+    };
+    return $self->_planned(
+        {
+            native_kind => 'write',
+            type        => $type,
+            call        => $call,
+            prepared    => $prepared
+        }
+    );
+}
+
+# The function's row as the workflow's result; the mentions of the stored
+# post are recorded by the caller, on its transaction.
+sub write_result ( $self, $type, $call, $prepared, $row ) {
+    my $outcome = $row->{outcome} // q{};
+    return $self->codec->replay( $type, $row->{response} )
+      if $outcome eq 'replayed';
+    return _result(
+        status => 'conflict',
+        error  =>
+          GPForum::Service::Operations::CommandIdempotency->refusal_error(
+            $outcome)
+    ) if $outcome ne 'recorded';
+    my $response = $row->{response};
+    return _result( status => 'invalid', prepared => $prepared )
+      if $response->{status} eq 'invalid';
+    return _result(
+        status => $response->{status},
+        error  => $response->{error}
+    ) if !$response->{ok};
+    my $stored =
+      $self->_function_store($type)->function_answer( $row->{stored} );
+    return _result( status => 'ok', stored => $stored, prepared => $prepared );
+}
+
+sub failure_result ( $self, $type, $error ) {
+    my $store_error =
+      $type eq $REPLY
+      ? "$error" =~ $STORE_FUNCTION
+      : "$error" =~ /\bapi[.]core_forum_\w+_v1\b/msx;
+    if ($store_error) {
+        my ( $noun, $label ) = @{ $STORE{$type} };
+        $self->_log( error => "$label failed: $error" );
+        return _result( status => 'failed', error => "$noun store failed" );
+    }
+    return $self->_command_log_failure($error);
+}
+
+sub _command_log_failure ( $self, $error ) {
+    $self->_log( error => "command log failed: $error" );
+    return _result( status => 'failed', error => 'command log failed' );
+}
+
+sub _function_store ( $self, $type ) {
+    my $method = $STORE{$type}[0] . '_store';
+    return $self->$method;
+}
+
+sub _function_type ($type) {
+    my ( $noun, $verb ) = split /[.]/msx, $type;
+    my %event = (
+        create  => 'created',
+        edit    => 'updated',
+        move    => 'moved',
+        delete  => 'deleted',
+        restore => 'undeleted',
+    );
+    return "$noun.$event{$verb}";
+}
+
+# A composer's answer: invalid, or its command, to be stored by the call.
+sub _store_composed ( $self, $type, $prepared ) {
+    return _result( status => 'invalid', prepared => $prepared )
+      if !$prepared->{ok};
+
+    return {
+        %{ $self->_call_store( $type, $prepared->{command} ) },
+        prepared => $prepared
+    };
+}
+
+# A command the call stores. The function checks again, under its row locks,
+# what the workflow checked before the call, because a moderator may have
+# locked or hidden the thread or the post since, or the author deleted or
+# restored one; its refusal is the answer it records.
+sub _call_store ( $, $type, $command ) {
+    return { pending => 1, command => $command };
+}
+
+# The mentions of a stored write, recorded on its transaction's call layer
+# when its answer stored one. They run in a savepoint of it: a failure only
+# degrades, and must not abort the transaction the post commits in.
+async sub record_mentions_p ( $self, $result, $command, $context, $scope ) {
+    return if !_records_mentions($result);
+    my $store = $self->mention_store;
+    my $input = _mention_input( $result->{stored}, $command );
+    try {
+        if ( $store->can('record_for_source_p') ) {
+            await $scope->transaction_p(
+                async sub ($savepoint) {
+                    return await $store->record_for_source_p( $input,
+                        $context, $savepoint );
+                },
+                $context
+            );
+        }
+        else { $store->record_for_source($input); }
+    }
+    catch ($error) {
+        $self->_log( warn => "mention recording degraded: $error" );
+    };
+
+    return;
+}
+
+sub _mention_input ( $stored, $command ) {
+    return {
+        actor_id => column_of( $stored->{post}, 'author_user_id' )
+          || $command->{post}{author_user_id},
+        body_source  => $command->{body}{body_source},
+        max_mentions => $MAX_MENTIONS,
+        source_id    => column_of( $stored->{post}, 'post_id' ),
+        source_type  => 'post',
+        thread_id    => $command->{post}{thread_id},
+    };
+}
+
+# ADR 0102: the effective visibility a new thread or reply may not exceed,
+# from the columns of the category or thread it goes in. No category (the
+# composer rejects that) sets no floor.
+sub _effective_visibility ( $row, @columns ) {
+    return undef if !$row;
+
+    return GPForum::Service::Forum::Visibility->effective(
+        map { column_of( $row, $_ ) } @columns );
+}
+
+sub _command_id ($input) {
+    my $command_id = trimmed( $input->{command_id} );
+    return $command_id if length $command_id;
+
+    return trimmed( $input->{idempotency_key} );
+}
+
+# No input at all is answered like input without a command id.
+sub _missing_command_id_result ($input) {
+    return _result(
+        status   => 'invalid',
+        prepared => {
+            errors => { command_id => 'command_id is required' },
+            ok     => 0,
+            values => { %{ $input // {} } },
+        },
+    );
+}
+
+sub _result (%input) {
+    return {
+        error    => $input{error},
+        ok       => ( $input{status} || q{} ) eq 'ok' ? 1 : 0,
+        prepared => $input{prepared},
+        status   => $input{status} || 'failed',
+        stored   => $input{stored},
+    };
+}
+
+# Trimmed, and undef when nothing is left, as the command log keeps an actor.
+sub _nullable ($value) {
+    my $trimmed = trimmed($value);
+
+    return length $trimmed ? $trimmed : undef;
+}
+
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw(
+        message => 'posting needs the PostgreSQL function layer' );
+}
+
+sub _log ( $self, $level, $message ) {
+    if ( $self->logger ) {
+        $self->logger->$level($message);
+    }
+
+    return undef;
+}
+
+# The author as a reader (ADR 0102): a write needs a category or thread they
+# can read. Controllers pass the request's viewer; without one, anonymous --
+# which reads public content only, so a write never widens access.
+sub _viewer ($input) {
+    return $input->{viewer} || GPForum::Service::Forum::Viewer->anonymous;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Forum::PostingWorkflow - Create, edit, move, delete and restore threads and posts, once per command id.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $workflow = GPForum::Service::Forum::PostingWorkflow->new(
+        category_reader      => $category_reader,
+        command_idempotency  => $command_idempotency,
+        logger               => $app->log,
+        mention_store        => $mention_store,
+        post_composer        => $post_composer,
+        post_store           => $post_store,
+        thread_composer      => $thread_composer,
+        thread_detail_reader => $thread_detail_reader,
+        thread_store         => $thread_store,
+    );
+
+    my $result = $workflow->create_thread(
+        {
+            author_user_id => $user_id,
+            body_source    => $markdown,
+            category_id    => $category_id,
+            command_id     => $command_id,
+            title          => $title,
+            viewer         => $viewer,
+        }
+    );
+    if ( $result->{ok} ) {
+        my $thread = $result->{stored}{thread};  # a Thread row
+    }
+    elsif ( $result->{status} eq 'invalid' ) {
+        # $result->{prepared}{errors}, $result->{prepared}{values}
+    }
+
+    $workflow->create_reply(
+        {
+            author_user_id => $user_id,
+            body_source    => $markdown,
+            command_id     => $reply_command_id,
+            thread_id      => $thread_id,
+            viewer         => $viewer,
+        }
+    );
+
+=head1 DESCRIPTION
+
+The write side of the forum for its controllers: a new thread, a reply, and
+an author's title edit, move, delete and restore of a thread, and edit,
+delete and restore of a post. Each method checks the request, has a composer
+validate it and build the command where there is something to validate,
+hands the command to the store, and answers with one result shape.
+
+The author acts as a reader (ADR 0102): the category and the thread are
+read through the category reader and the thread detail reader as the
+request's C<viewer>, or as an anonymous reader when there is none, so a
+write never reaches what its author cannot read, and what they cannot read
+is answered as not found. Only the author of a thread or a post may change
+it, and not while it is hidden or its thread is locked: the rules of
+L<GPForum::Domain::Thread> and L<GPForum::Domain::Post>, which the stores
+ask again under their row locks. A new thread or reply
+may not ask for a visibility broader than the effective visibility of the
+category or thread it goes in, which the composer gets as its floor.
+
+The store checks again, under its row locks, what the workflow checked
+before the transaction, because a moderator may have locked or hidden the
+thread or the post since, or the author deleted or restored one in another
+tab. Its refusal is an answer, not a failure: the status
+L<GPForum::Domain::Post/status_of> gives the same words, which is the status
+the workflow's own check gives (C<thread not found> and C<post not found>
+are C<not_found>, C<thread is locked> and C<post is hidden> C<forbidden>).
+
+On PostgreSQL a reply is one call (ADR 0126): C<api.forum_create_reply>
+runs the command log's steps and the post store's write, under the same
+locks in the same order, and records the same rows. The workflow keeps what
+is not the database's: the request's fingerprint, the ids and the clock,
+the check before the lock (the thread as the author reads it, through the
+thread detail reader) and the composer, whose refusal is the response the
+function records. A body that may mention someone (it holds an at sign)
+has the function's call and the mention store's work in one transaction,
+as the command's transaction held them; any other is one statement. The
+answers, the log lines and the rows are the Perl path's, which in-memory
+doubles keep.
+
+Every method needs a command id. With a C<command_idempotency>
+(L<GPForum::Service::Operations::CommandIdempotency>), a command runs once
+per id: the request (the author and the trimmed fields each entry names,
+the body as a SHA-256 hash of the trimmed source, but not the C<viewer> or
+an C<edit_reason>) and the response are kept in the command log, a repeat of
+the same request gets the response back without running anything, and a
+different request under the same id is refused as a conflict. A C<failed>
+result is not kept, so the same id can be tried again. Without a
+C<command_idempotency>, every call runs.
+
+After a new thread, a reply or a post edit is stored, the mentions in its
+body are recorded through the mention store, at most ten; a failure there is
+logged as a warning and does not fail the write.
+
+=head1 SUBROUTINES/METHODS
+
+Every method below takes one hash reference with C<command_id> (or
+C<idempotency_key> when C<command_id> is empty; both are trimmed),
+C<author_user_id>, the acting user (trimmed, as the requester the rules
+check and the stores record), and an optional C<viewer>, a
+L<GPForum::Service::Forum::Viewer> (anonymous when absent), plus the fields
+named in its entry. It returns a hash reference:
+
+    {
+        ok       => 1 or 0,     # 1 only when status is 'ok'
+        status   => $status,    # ok, invalid, not_found, forbidden,
+                                # conflict or failed
+        error    => $message,   # why, for every status but ok and invalid
+        prepared => $prepared,  # the composer's answer, if one ran, on ok
+                                # and invalid
+        stored   => $stored,    # the store's answer, on ok
+    }
+
+A store's refusal or death is answered without C<prepared> or C<stored>;
+only a C<failed> for a store answer that is neither a success nor a known
+refusal carries that answer in C<stored>.
+
+Every method also answers:
+
+=over 4
+
+=item * C<invalid>, with
+C<< prepared => { ok => 0, errors => { command_id => 'command_id is required' }, values => { %input } } >>,
+when the command id is empty;
+
+=item * C<conflict>, with the command log's message, when the id was used
+for another request or that command is still running;
+
+=item * C<failed> with C<command log failed> when the command log fails, or
+when anything the command runs dies (with a C<command_idempotency> only);
+
+=item * C<failed> with C<thread store failed> or C<post store failed> when
+the store dies or gives an answer that is neither a success nor one of the
+refusals above;
+
+=item * on a replay, the stored response as a result with C<< idempotent => 1 >>,
+C<prepared> rebuilt for an C<invalid> answer, and C<stored> rebuilt from the
+ids kept in the response, as each entry says.
+
+=back
+
+=head2 mentioning
+
+Takes a command type, its call and the composer's answer. Returns the
+command when its post's mentions are recorded with it -- a new thread, a
+reply or a post edit whose body has an at sign -- else undef. The executor
+(L<GPForum::Service::Forum::PostingNative/written_p>) records them in the
+call's transaction.
+
+=head2 reply_result
+
+Takes the row C<api.forum_create_reply> answers and the composer's answer;
+returns the workflow's result: a replay, a conflict in the command log's
+words, or the answer recorded -- the post stored, invalid, or a refusal.
+
+=head2 write_result
+
+The same for C<api.forum_write_command>: takes the command type, the call,
+the composer's answer and the row.
+
+=head2 failure_result
+
+Takes a command type and the error its call failed with. Returns the
+workflow's failure: the store's (C<post store failed>, C<thread store
+failed>) when the error names a store step, else C<command log failed>;
+each logged at error level.
+
+=head2 new
+
+Constructor (L<GPForum::Base>). The collaborators are required, and a
+missing or undefined one throws L<GPForum::X::Argument>
+(C<GPForum::Service::Forum::PostingWorkflow requires NAME, ...>):
+C<category_reader> (L<GPForum::Service::Forum::CategoryReader>),
+C<thread_detail_reader> (L<GPForum::Service::Forum::ThreadDetailReader>),
+C<command_idempotency> (L<GPForum::Service::Operations::CommandIdempotency>,
+whose ids, clock and request hash the command log's row is written with),
+C<thread_composer>
+(L<GPForum::Service::Forum::ThreadComposer>), C<post_composer>
+(L<GPForum::Service::Forum::PostComposer>), C<thread_store>
+(L<GPForum::Service::Forum::ThreadStore>), C<post_store>
+(L<GPForum::Service::Forum::PostStore>) and C<mention_store>
+(L<GPForum::Service::Community::MentionStore>). C<logger> (anything with
+C<error> and C<warn>, such as L<Mojo::Log>) is optional. C<functions>
+defaults to the post store's L<GPForum::Infrastructure::SqlFunction>;
+without one every command raises L<GPForum::X::Unavailable>. C<codec> defaults to L<GPForum::Service::Forum::PostingCommand>,
+which encodes the request, the response and the replay of each command type
+for the command log. C<automod> (L<GPForum::Service::Forum::PostingAutomod>)
+is optional: with it a new thread, a reply, a post edit and a thread title
+edit are screened against the watched words and the link rule (ADR 0133),
+and a block answers C<invalid> with an C<automod> member naming the field
+and what matched.
+
+=head2 async_call_p
+
+Use native PostgreSQL commands with isolated data-only preparation
+(L<GPForum::Service::Forum::PostingNative>). A body that mentions someone
+has its command, its mentions and their notifications in one transaction on
+the pooled connections.
+
+=head2 create_thread
+
+Takes C<category_id>, C<title>, C<body_source> and an optional
+C<visibility>. Returns C<not_found> (C<category not found>) when a category
+id is given that the viewer cannot read, and C<invalid> with the composer's
+answer when L<GPForum::Service::Forum::ThreadComposer/prepare> rejects the
+input (an empty category id among the reasons). Otherwise stores the thread
+with L<GPForum::Service::Forum::ThreadStore/create_thread>, records the
+mentions in the opening post, and returns C<ok> with C<prepared> (holding
+the command) and C<stored>, the store's answer (C<thread>, C<post> and
+C<skipped>). Command type C<thread.create>; a replay's C<stored> is
+C<< { ok => 1, thread => { thread_id }, post => { post_id } } >>.
+
+=head2 publish_reviewed
+
+Publishes a post staff approved from the review queue (ADR 0134) as its
+author's command, neither screened nor held again.
+
+=head2 record_mentions_p
+
+Takes a write's result, the command whose body mentions someone, a query
+context and the call layer of the transaction the write ran in. When the
+result stored a post (not a replay), records its mentions through the
+mention store's C<record_for_source_p> in a savepoint of that transaction,
+at most ten; a failure is logged as C<mention recording degraded> and only
+degrades. L<GPForum::Service::Forum::PostingNative> calls it after the
+command's call.
+
+=head2 publish_reviewed_p
+
+L</publish_reviewed> as a promise; takes the command type, the input, an
+optional query context and an optional transaction call layer (the review
+store's, which holds the held post's lock). The reads, the preparation and
+the write run as L</async_call_p> runs a command, the write and its mentions
+on that layer when one is given, so the post commits with the review's
+decision. On a blocking layer the plan is composed in the process, as
+L</publish_reviewed> composes it, and written in the same transaction.
+
+=head2 create_reply
+
+Takes C<thread_id>, C<body_source> and an optional C<visibility>. Returns
+C<not_found> (C<thread not found>) when the viewer cannot read the thread,
+C<forbidden> (C<thread is locked>) when it is locked, and C<invalid> when
+L<GPForum::Service::Forum::PostComposer/prepare> rejects the input.
+Otherwise stores the post, at the thread's next position, with
+L<GPForum::Service::Forum::PostStore/create_post>, records its mentions, and
+returns C<ok> with C<prepared> and C<stored>, the post store's answer; a
+refusal of the post store is answered as described above. Command type
+C<reply.create>; a replay's C<stored> is
+C<< { ok => 1, post => { post_id, thread_id } } >>.
+
+=head2 edit_thread
+
+Takes C<thread_id> and C<title>. Returns C<not_found> (C<thread not found>)
+when the viewer cannot read the thread or it is deleted; C<forbidden> when
+the requester is not its author (C<not the thread author>), its moderation
+state is C<hidden> (C<thread is hidden>) or it is locked
+(C<thread is locked>); and C<invalid> when
+L<GPForum::Service::Forum::ThreadComposer/prepare_title> rejects the title.
+Otherwise stores the new title and slug with
+L<GPForum::Service::Forum::ThreadStore/edit_thread> and returns C<ok> with
+C<prepared> and C<stored> (C<thread>, and C<skipped> when nothing changed);
+a refusal of the thread store is answered as described above. Command type
+C<thread.edit>; a replay's C<stored> is
+C<< { ok => 1, thread => { thread_id, title, slug } } >>.
+
+=head2 move_thread
+
+Takes C<thread_id> and C<category_id>, the target. Gives the C<not_found>
+and C<forbidden> answers of L</edit_thread>, so only the thread's author may
+move it; then C<not_found> (C<category not found>) when a target id is given
+that the viewer cannot read, and C<invalid> when
+L<GPForum::Service::Forum::ThreadComposer/prepare_move> rejects the input
+(an empty target among the reasons). Otherwise moves the thread with
+L<GPForum::Service::Forum::ThreadStore/move_thread> and returns C<ok> with
+C<prepared> and C<stored> (C<thread>, and C<skipped> when it was already
+there); a refusal of the thread store is answered as described above.
+Command type C<thread.move>; a replay's C<stored> is
+C<< { ok => 1, thread => { thread_id, category_id } } >>.
+
+=head2 delete_thread
+
+Takes C<thread_id>. Gives the C<not_found> and C<forbidden> answers of
+L</edit_thread>; there is nothing to validate, so no composer runs and
+C<prepared> is undefined. Otherwise soft-deletes the thread with
+L<GPForum::Service::Forum::ThreadStore/delete_thread>, the requester as
+C<deleted_by>, and returns C<ok> with C<stored> (C<thread>); a refusal of
+the thread store is answered as described above. Command type
+C<thread.delete>; a replay's C<stored> is
+C<< { ok => 1, thread => { thread_id } } >>.
+
+=head2 restore_thread
+
+Takes C<thread_id>. Returns C<not_found> (C<thread not found>) unless the
+viewer can read the thread and it is deleted (the thread detail reader shows
+a deleted thread to its author only), then the C<forbidden> answers of
+L</edit_thread>. Otherwise restores the thread with
+L<GPForum::Service::Forum::ThreadStore/restore_thread>, the requester as
+C<restored_by>, and returns C<ok> with C<stored> (C<thread>); a refusal of
+the thread store is answered as described above. Command type
+C<thread.restore>; replayed as L</delete_thread> is.
+
+=head2 edit_post
+
+Takes C<post_id>, C<body_source> and an optional C<edit_reason>. Returns
+C<not_found> with C<post not found> when the post is missing or deleted, and
+with C<thread not found> when the viewer cannot read its thread; C<forbidden>
+when the requester is not its author (C<not the post author>), the post is
+hidden (C<post is hidden>: it has a C<hidden_at>, or its moderation state is
+C<hidden>) or the thread is locked (C<thread is locked>); and C<invalid>
+when L<GPForum::Service::Forum::PostComposer/prepare_revision> rejects the
+input. Otherwise stores the new revision with
+L<GPForum::Service::Forum::PostStore/edit_post>, records the mentions in the
+new body, and returns C<ok> with C<prepared> and C<stored>, the post store's
+answer. Command type C<post.edit>; a replay's C<stored> is
+C<< { ok => 1, post => { post_id, thread_id } } >>.
+
+=head2 delete_post
+
+Takes C<post_id>. Gives the C<not_found> and C<forbidden> answers of
+L</edit_post>; no composer runs. Otherwise soft-deletes the post with
+L<GPForum::Service::Forum::PostStore/delete_post>, the requester as
+C<deleted_by>, and returns C<ok> with C<stored>. Command type
+C<post.delete>; replayed as L</edit_post> is.
+
+=head2 restore_post
+
+Takes C<post_id>. Returns C<not_found> with C<post not found> unless the
+post is deleted, and with C<thread not found> when the viewer cannot read
+its thread; then the C<forbidden> answers of L</edit_post>. Otherwise
+restores the post with L<GPForum::Service::Forum::PostStore/restore_post>,
+the requester as C<restored_by>, and returns C<ok> with C<stored>. Command
+type C<post.restore>; replayed as L</edit_post> is.
+
+=head1 DIAGNOSTICS
+
+A store's or the command log's error is caught and logged through C<logger>
+at error level (C<thread create failed>, C<reply create failed>,
+C<thread edit failed>, C<thread move failed>, C<thread delete failed>,
+C<thread restore failed>, C<post edit failed>, C<post delete failed>,
+C<post restore failed> or C<command log failed>, followed by the error), and
+the result is C<failed>. A mention store error is logged at warning level as
+C<mention recording degraded>. Without a C<command_idempotency>, an error in
+a reader or a composer dies out of the method; with one, it is caught as
+C<command log failed>. Nothing is logged without a C<logger>. A missing
+collaborator throws L<GPForum::X::Argument> from L</new>.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+L<GPForum::Domain::Post>, L<GPForum::Domain::Thread>,
+L<GPForum::Service::Forum::Viewer>, L<GPForum::Service::Forum::Visibility>,
+L<GPForum::Service::Forum::PostingCommand>,
+L<GPForum::Infrastructure::Row>, L<GPForum::Base>, L<Const::Fast>,
+L<Mojo::Base>, and the collaborators listed under L</new>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+A replay rebuilds C<stored> from the response kept in the command log, so it
+holds only the ids (and, for a title edit or a move, the new title and slug
+or category), not the rows a first run returns.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

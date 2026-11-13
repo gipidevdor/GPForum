@@ -1,0 +1,97 @@
+{
+  "application_commit": "60c7b9f2f4825073331c3b7f244da8722a3f31a0",
+  "runner": {
+    "arch": "arm64",
+    "cpu_count": 10,
+    "cpu_model": "Apple M4",
+    "image": "Darwin",
+    "image_version": null,
+    "kernel": "27.2.0",
+    "label": "local",
+    "memory_bytes": 17179869184,
+    "name": "local",
+    "os": "Darwin"
+  },
+  "versions": {
+    "mojolicious": "9.51",
+    "perl": "v5.44.0",
+    "platform": "darwin-thread-multi-2level",
+    "postgres": "18.6 (Homebrew)"
+  },
+  "configuration": {
+    "concurrency": [
+      100
+    ],
+    "deadline": 900,
+    "duration": 6,
+    "iterations": 100,
+    "profile": "full",
+    "repetitions": 3,
+    "scenario": [
+      "member.thread"
+    ],
+    "warmup": 10,
+    "worker_clients": 16,
+    "workers": 8,
+    "write_clients": 10,
+    "write_iterations": 2
+  },
+  "dataset": {
+    "categories": 8,
+    "posts": 4800,
+    "private_lists": "seeded members retain seeded inbox/feed/bookmark rows; writes use independent member identities",
+    "threads": 240,
+    "users": 103
+  },
+  "rows": [
+    {
+      "sessions": 1,
+      "requests_per_second": 68.9620929164368,
+      "p95_ms": 15.9280000079889,
+      "requests_per_second_repetitions": [
+        68.4798299508542,
+        71.4178077446834,
+        68.9620929164368
+      ],
+      "p95_ms_repetitions": [
+        15.8790000132285,
+        15.9280000079889,
+        17.277999984799
+      ]
+    },
+    {
+      "sessions": 100,
+      "requests_per_second": 452.285344732924,
+      "p95_ms": 282.021999999415,
+      "requests_per_second_repetitions": [
+        456.051704559456,
+        449.820128235471,
+        452.285344732924
+      ],
+      "p95_ms_repetitions": [
+        266.453999996884,
+        299.452000006568,
+        282.021999999415
+      ]
+    }
+  ],
+  "completed_cells": 6,
+  "measured_requests": 8736,
+  "errors": 0,
+  "observed_workers": 8,
+  "detected_competing_tests": false,
+  "harness_overlay": null,
+  "comparison_to_05f": {
+    "baseline_requests_per_second": 369.954437528797,
+    "baseline_p95_ms": 352.84700000193,
+    "rps_change_percent": 22.254336981082545,
+    "p95_change_percent": -20.07243932983066
+  },
+  "target_median_450_300_met": true,
+  "limitations": [
+    "Colocated closed-loop laptop run; process monitor does not certify an otherwise idle host or production capacity.",
+    "Selects100sessions plus the mandatory1-client cells; original05f baseline also selects10/50sessions. All other workload parameters match.",
+    "New commit contains combined HTTP context reads, rendering/memoization and additional async/UI changes; this is a version comparison, not isolated attribution or a Mojo::Pg-vs-DBIx driver benchmark.",
+    "Auth and mixed results from756 must not be presented as measurements of60c7."
+  ]
+}

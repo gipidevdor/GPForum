@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-11-06T02:55:03.956347+00:00",
+  "source_files_unchanged": true,
+  "patches_apply_to_prior_verified_candidate": true,
+  "diff_check_exit_code": 0,
+  "checked_files": [
+    "lib/GPForum/Web/PublicCacheAccess.pm",
+    "lib/GPForum/Service/Forum/PageWindow.pm",
+    "lib/GPForum/Service/Forum/ThreadReader.pm",
+    "lib/GPForum/Service/Forum/CategoryReader.pm",
+    "lib/GPForum/Service/Search/Searcher.pm",
+    "t/115-web-public-cache-access.t",
+    "t/862-pagination-boundaries.t",
+    "t/integration/postgres-public-cache.t",
+    "etc/architecture-policy-baseline.json"
+  ],
+  "micro_comparison": "iteration 3 -> 4",
+  "http_comparison": "iteration 2 -> 4 cumulative"
+}

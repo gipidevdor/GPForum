@@ -1,0 +1,740 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Realtime::Hub;
+
+use Const::Fast;
+use List::Util   qw(uniq);
+use Mojo::JSON   qw(encode_json);
+use Scalar::Util qw(blessed weaken);
+use Mojo::Base -base, -async_await;
+use v5.40;
+
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Service::Realtime::ChannelAuthorizer;
+use GPForum::Service::Realtime::ConnectionRegistry;
+use GPForum::Service::Realtime::EventEnvelope;
+
+our $VERSION = '0.001';
+
+const my $AUTHORIZED_AT_ONCE    => 5;
+const my $FALLBACK_POLL_SECONDS => 30;
+const my $SESSION_CHECK_SECONDS => 30;
+const my $SESSION_ENDED         => 1008;
+const my $SESSION_ENDED_REASON  => 'session ended';
+const my $THREAD_UPDATE         => 'thread.update';
+const my $NOTIFICATION_BADGE    => 'notification.badge';
+const my $NOTIFICATIONS         => 'notifications';
+const my $MODERATION_INVALIDATE => 'moderation.queue.invalidate';
+
+# The services the hub asks, which block with its blocking twins.
+const my @PARTS => qw(authorizer badge_counter readability session_store);
+
+# Channels authorised again on every broadcast, not only when subscribed: a
+# moderator demoted while their queue page stayed open kept receiving it.
+const my %PRIVILEGED => map { $_ => 1 } qw(moderation admin);
+const my %CHANNEL_TYPE_FOR_EVENT => (
+    $THREAD_UPDATE      => 'thread',
+    $NOTIFICATION_BADGE => $NOTIFICATIONS,
+
+    # ADR 0139: a direct message's hint, on the member's own channel.
+    'direct_message.update' => $NOTIFICATIONS,
+);
+
+has authorizer =>
+  sub { return GPForum::Service::Realtime::ChannelAuthorizer->new; };
+
+# Answers unread_count_for_user_p: the notification dispatcher, whose count
+# is the inbox's own -- readable sources only, capped (ADR 0102). Badge
+# snapshots need it; without one none are sent.
+has badge_counter => undef;    # optional: without one no badge is sent
+has event_contract =>
+  sub { return GPForum::Service::Realtime::EventEnvelope->new; };
+has registry =>
+  sub { return GPForum::Service::Realtime::ConnectionRegistry->new; };
+
+# ADR 0102: who may read a thread is asked again at every broadcast on its
+# channel. Without it a subscriber kept receiving the thread's activity after
+# its category turned private, their grant was revoked or they were
+# suspended.
+has readability => undef;    # optional: readers go unfiltered without it
+has stats       => sub {
+    return {
+        badge_snapshots        => 0,
+        broadcast              => 0,
+        broadcast_failures     => 0,
+        broadcasts             => 0,
+        delivered              => 0,
+        failed                 => 0,
+        malformed              => 0,
+        malformed_events       => 0,
+        session_check_failures => 0,
+        sessions_closed        => 0,
+    };
+};
+
+# ADR 0148: a socket ends with the session it was opened in. Every
+# session_check_seconds, while this process holds a socket, the hub asks the
+# session store (live_session_ids_p) which of its sockets' sessions are
+# still live, in one call, and closes the others. Without a store nothing is
+# checked; without a loop the check runs only when called.
+has session_store         => undef;  # optional: no session check without it
+has ioloop                => undef;  # optional: the check runs only when called
+has session_check_seconds => $SESSION_CHECK_SECONDS;
+
+# The session check's timer while one runs, and whether a check is in
+# flight: a blocking copy shares the hash, so a copy that closed the last
+# socket stops the hub's check, and the next socket starts it again.
+has session_check => sub { return {}; };
+
+# The call layer of the first part that has one: blocking_copy makes the
+# parts block only when the hub has one.
+has functions => sub ($self) {
+    for my $part ( map { $self->$_ } @PARTS ) {
+        my $functions =
+          blessed $part && $part->can('functions') ? $part->functions : undef;
+        return $functions if $functions;
+    }
+    return undef;
+};
+
+# Each operation is written once, as its promise method (ADR 0177); the
+# blocking forms are its twins, the parts blocking with them.
+GPForum::Infrastructure::SqlFunction->blocking_twins(
+    qw(subscribe broadcast broadcast_event send_badge_snapshot
+      resend_badge_snapshots close_ended_sessions)
+);
+GPForum::Infrastructure::SqlFunction->blocking_parts(@PARTS);
+
+# The sockets, the subscriptions and the counters are the process's, shared
+# with every blocking copy of the hub: they are built here, before a copy is
+# made, or a copy would subscribe and count in state of its own and lose it.
+sub new ( $class, @arguments ) {
+    my $self = $class->SUPER::new(@arguments);
+    $self->registry;
+    $self->session_check;
+    $self->stats;
+
+    return $self;
+}
+
+async sub subscribe_p ( $self, $request ) {
+    my $authorization =
+      await $self->authorizer->authorize_p( $request->{actor},
+        $request->{channel}, $request->{context} || {} );
+    return $authorization if !$authorization->{ok};
+
+    # A socket may close while authorization is pending.
+    my $subscription = $self->registry->subscribe( $request->{connection_id},
+        $request->{channel} );
+    return $subscription if !$subscription->{ok};
+    return {
+        ok      => 1,
+        channel => $request->{channel},
+        reason  => $authorization->{reason}
+    };
+}
+
+# Closes the sockets whose session has ended -- signed out, revoked,
+# expired -- and those opened with none; returns how many. A store that
+# cannot answer is no evidence that a session ended: nothing is closed.
+async sub close_ended_sessions_p ($self) {
+    return 0 if !$self->session_store;
+    my @rows = values %{ $self->registry->connections };
+    my @ids  = uniq grep { defined } map { _session_id( $_->{actor} ) } @rows;
+    my $live = {};
+    try {
+        if (@ids) {
+            $live = await $self->session_store->live_session_ids_p( \@ids );
+        }
+    }
+    catch ($error) { $self->stats->{session_check_failures}++; return 0; };
+    return $self->_close_sessions(
+        grep {
+            $self->registry->connection( $_->{connection_id} )
+              && !$live->{ _session_id( $_->{actor} ) // q{} }
+        } @rows
+    );
+}
+
+# The connection's user's unread count, sent to that connection alone. A
+# badge carries an absolute count, so one snapshot heals whatever a socket
+# missed: a subscriber that has just (re)connected, possibly to another node,
+# or every subscriber after this process lost notifications in a gap.
+async sub send_badge_snapshot_p ( $self, $connection_id ) {
+    my $row     = $self->registry->connection($connection_id);
+    my $user_id = $row ? _user_id( $row->{actor} ) : undef;
+    return { ok => 0, reason => 'connection_not_found' } if !defined $user_id;
+    my $count = await $self->_unread_count_p($user_id);
+    return { ok => 0, reason => 'connection_not_found' }
+      if !$self->registry->connection($connection_id);
+    return $self->_send_badge( $row, $user_id, $count );
+}
+
+# Returns how many snapshots were sent. Each user's count is read once,
+# however many of their sockets this process holds: a gap follows a
+# reconnect, when every process of every node resends at the same moment to
+# a database that has just come back.
+async sub resend_badge_snapshots_p ($self) {
+    my %count;
+    my $sent = 0;
+    for my $row ( $self->registry->subscribers_of_family($NOTIFICATIONS) ) {
+        my $user_id = _user_id( $row->{actor} );
+        next if !defined $user_id || !$self->badge_counter;
+        if ( !exists $count{$user_id} ) {
+            $count{$user_id} = await $self->_unread_count_p($user_id);
+        }
+        next if !$self->registry->connection( $row->{connection_id} );
+        if ( $self->_send_badge( $row, $user_id, $count{$user_id} )->{ok} ) {
+            $sent++;
+        }
+    }
+    return $sent;
+}
+
+# Undef when there is no counter or it failed.
+async sub _unread_count_p ( $self, $user_id ) {
+    return undef if !$self->badge_counter;
+    my $count;
+    try {
+        $count = await $self->badge_counter->unread_count_for_user_p($user_id);
+    }
+    catch ($error) { $count = undef; };
+    return $count;
+}
+
+async sub broadcast_p ( $self, $channel, $payload ) {
+    my @authorized = await $self->_still_authorized_p( $channel,
+        $self->registry->subscribers($channel) );
+    my @subscribers =
+      await $self->_readers_p( $channel, $payload, @authorized );
+    my ( $delivered, $failed ) = ( 0, 0 );
+    my $prepared = {};
+    for my $row (@subscribers) {
+        next if !$self->registry->connection( $row->{connection_id} );
+        if ( _send_json( $row->{connection}, $payload, $prepared ) ) {
+            $delivered++;
+        }
+        else { $failed++; }
+    }
+    $self->stats->{broadcast}++;
+    $self->stats->{broadcasts}++;
+    $self->stats->{delivered}          += $delivered;
+    $self->stats->{failed}             += $failed;
+    $self->stats->{broadcast_failures} += $failed;
+    return {
+        ok        => 1,
+        channel   => $channel,
+        delivered => $delivered,
+        failed    => $failed
+    };
+}
+
+# The subscribers who may read every resource the event names -- the
+# thread of a thread channel, the post it is about -- each resource asked
+# of all of them at once and the resources asked together: a reply's hint
+# waited for its thread's answer before its post's was asked. A subscriber
+# filtered out stays subscribed: every broadcast asks again, so one who
+# regains access -- a thread restored, a grant given back -- resumes.
+async sub _readers_p ( $self, $channel, $payload, @subscribers ) {
+    my @resources = _readability_resources( $channel, $payload );
+    return @subscribers if !@subscribers || !@resources || !$self->readability;
+    my %users =
+      map { $_->{connection_id} => _user_id( $_->{actor} ) // q{} }
+      @subscribers;
+    my @users = uniq values %users;
+    my %readers;
+    my @readable =
+      await _each_p( map { $self->readability->readers_list_p( @{$_}, @users ) }
+          @resources );
+    for my $reader ( map { uniq @{$_} } @readable ) {
+        $readers{$reader}++;
+    }
+
+    return
+      grep { ( $readers{ $users{ $_->{connection_id} } } // 0 ) == @resources }
+      @subscribers;
+}
+
+# The subscribers of a privileged channel the authorizer still admits, each
+# member asked once, a few at a time; every subscriber of any other channel.
+async sub _still_authorized_p ( $self, $channel, @subscribers ) {
+    return @subscribers if !_privileged($channel);
+    my %actor_of;
+    for my $row (@subscribers) {
+        my $user = _user_id( $row->{actor} ) // next;
+        $actor_of{$user} //= $row->{actor};
+    }
+    my @users = sort keys %actor_of;
+    my %allowed;
+    while ( my @batch = splice @users, 0, $AUTHORIZED_AT_ONCE ) {
+        my @answers = await _each_p(
+            map {
+                $self->authorizer->authorize_p( $actor_of{$_}, $channel, {} )
+            } @batch
+        );
+        @allowed{@batch} = map { $_->{ok} ? 1 : 0 } @answers;
+    }
+    return grep { $allowed{ _user_id( $_->{actor} ) // q{} } } @subscribers;
+}
+
+# The answers of promises already started, in their order, each awaited in
+# turn: they run at once all the same, and Mojo::Promise->all would settle a
+# tick later, which a blocking caller cannot wait for. Each is observed now,
+# so one failing first leaves none of the others an unhandled rejection;
+# the first failure in order is raised.
+async sub _each_p (@promises) {
+    for my $promise (@promises) {
+        $promise->catch( sub { return; } );
+    }
+    my @answers;
+    for my $promise (@promises) {
+        push @answers, await $promise;
+    }
+    return @answers;
+}
+
+sub _privileged ($channel) {
+    my $parsed =
+      GPForum::Service::Realtime::ChannelAuthorizer::parse_channel($channel);
+    return $parsed && exists $PRIVILEGED{ $parsed->{type} };
+}
+
+sub _readability_resources( $channel, $payload ) {
+    my $parsed =
+      GPForum::Service::Realtime::ChannelAuthorizer::parse_channel($channel);
+    my @resources;
+    if ( $parsed && $parsed->{type} eq 'thread' ) {
+        push @resources, [ 'thread', $parsed->{resource_id} ];
+    }
+    if (   ref $payload eq 'HASH'
+        && ref $payload->{payload} eq 'HASH'
+        && defined $payload->{payload}{post_id} )
+    {
+        push @resources, [ 'post', $payload->{payload}{post_id} ];
+    }
+    return @resources;
+}
+
+async sub broadcast_event_p ( $self, $event ) {
+    my $rejection = $self->_event_rejection($event);
+    return $rejection if $rejection;
+    my @channels = _channels_for_event($event);
+    my $summary =
+      { ok => 1, delivered => 0, failed => 0, channels => \@channels };
+    for my $channel (@channels) {
+        my $result = await $self->broadcast_p( $channel, $event );
+        $summary->{delivered} += $result->{delivered} || 0;
+        $summary->{failed}    += $result->{failed}    || 0;
+    }
+    return $summary;
+}
+
+sub register_connection ( $self, $connection_id, $actor, $connection ) {
+    my $row = $self->registry->register( $connection_id, $actor, $connection );
+    if ($row) {
+        $self->_watch_sessions;
+    }
+
+    return $row;
+}
+
+sub disconnect ( $self, $connection_id ) {
+    my $row = $self->registry->unregister($connection_id);
+    if ( !$self->registry->count ) {
+        $self->_unwatch_sessions;
+    }
+
+    return $row;
+}
+
+# Closes this process's sockets of one session, at once: the sign-out made
+# here. Returns how many.
+sub close_session ( $self, $session_id ) {
+    return 0 if !defined $session_id;
+
+    return $self->_close_sessions(
+        grep { ( _session_id( $_->{actor} ) // q{} ) eq $session_id }
+          values %{ $self->registry->connections } );
+}
+
+sub _close_sessions ( $self, @rows ) {
+    for my $row (@rows) {
+        $self->disconnect( $row->{connection_id} );
+        _finish( $row->{connection} );
+    }
+    $self->stats->{sessions_closed} += scalar @rows;
+
+    return scalar @rows;
+}
+
+sub _watch_sessions ($self) {
+    return if !$self->session_store || !$self->ioloop;
+    my $check = $self->session_check;
+    return if defined $check->{timer_id};
+
+    my $hub = $self;
+    weaken $hub;
+    $check->{timer_id} = $self->ioloop->recurring(
+        $self->session_check_seconds => sub (@) {
+            return if !$hub || $check->{pending};
+            $check->{pending} = 1;
+            $hub->close_ended_sessions_p->finally(
+                sub { delete $check->{pending}; return; } )
+              ->catch( sub { return; } );
+        }
+    );
+
+    return;
+}
+
+sub _unwatch_sessions ($self) {
+    my $timer_id = delete $self->session_check->{timer_id};
+    return if !defined $timer_id;
+
+    $self->ioloop->remove($timer_id);
+
+    return;
+}
+
+sub _session_id ($actor) {
+    return ref $actor eq 'HASH' ? $actor->{session_id} : undef;
+}
+
+sub _finish ($connection) {
+    return if !$connection || !$connection->can('finish');
+
+    try {
+        $connection->finish( $SESSION_ENDED, $SESSION_ENDED_REASON );
+    }
+    catch ($error) {
+        return;
+    };
+
+    return;
+}
+
+sub _send_badge ( $self, $row, $user_id, $count ) {
+    return { ok => 0, reason => 'badge_unavailable' } if !defined $count;
+
+    my $sent = _send_json( $row->{connection},
+        $self->event_contract->notification_badge( $user_id, $count ) );
+    $self->stats->{badge_snapshots} += 1;
+
+    return { ok => $sent ? 1 : 0, unread_count => $count };
+}
+
+sub connection_count ($self) {
+    return $self->registry->count;
+}
+
+sub _event_rejection ( $self, $event ) {
+    my $validation = $self->event_contract->validate($event);
+    return undef if $validation->{ok};
+
+    $self->stats->{malformed}        += 1;
+    $self->stats->{malformed_events} += 1;
+
+    return { ok => 0, reason => $validation->{reason} };
+}
+
+sub fallback_state ($self) {
+    return {
+        realtime_required  => 0,
+        poll_after_seconds => $FALLBACK_POLL_SECONDS,
+        endpoints          => {
+            notifications => '/notifications',
+            thread        => '/thread/:thread_id',
+        },
+    };
+}
+
+sub snapshot ($self) {
+    return { %{ $self->registry->snapshot }, %{ $self->stats }, };
+}
+
+sub _user_id ($actor) {
+    return ref $actor eq 'HASH' ? $actor->{user_id} : $actor;
+}
+
+sub _send_json ( $connection, $payload, $prepared = undef ) {
+    return undef if !$connection;
+
+    my $sent;
+    try {
+        if ( $connection->can('send_realtime') ) {
+            $prepared //= {};
+            if ( !exists $prepared->{text} ) {
+                my $bytes = encode_json($payload);
+                $prepared->{bytes} = length $bytes;
+                $prepared->{text}  = $bytes;
+            }
+            $sent = $connection->send_realtime($prepared);
+        }
+        else {
+            $sent = $connection->send( { json => $payload } );
+        }
+    }
+    catch ($error) {
+        return undef;
+    };
+
+    return $sent;
+}
+
+sub _channel ( $type, $id ) {
+    return join q{:}, $type, $id;
+}
+
+sub _channels_for_event ($event) {
+    my $event_type = $event->{type} || q{};
+    if ( exists $CHANNEL_TYPE_FOR_EVENT{$event_type} ) {
+        my $channel_type = $CHANNEL_TYPE_FOR_EVENT{$event_type};
+        return _aggregate_channel( $channel_type, $event );
+    }
+
+    return _moderation_channels($event);
+}
+
+sub _aggregate_channel ( $channel_type, $event ) {
+    return if !defined $event->{aggregate_id};
+
+    return ( _channel( $channel_type, $event->{aggregate_id} ) );
+}
+
+sub _moderation_channels ($event) {
+    if ( ( $event->{type} || q{} ) eq $MODERATION_INVALIDATE ) {
+        return ('moderation:queue');
+    }
+
+    return;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Realtime::Hub - Holds this process's realtime sockets and subscriptions and broadcasts events to them.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $hub = GPForum::Service::Realtime::Hub->new(
+        authorizer    => $channel_authorizer,
+        badge_counter => $notification_dispatcher,
+        readability   => GPForum::Service::Forum::Readability->new(
+            schema => $schema,
+        ),
+    );
+    $hub->register_connection( $connection_id, { user_id => $user_id },
+        $websocket );
+    my $subscribed = $hub->subscribe(
+        {
+            actor         => { user_id => $user_id },
+            channel       => "notifications:$user_id",
+            connection_id => $connection_id,
+            context       => { transport => 'websocket' },
+        }
+    );
+    $hub->send_badge_snapshot($connection_id);
+    my $summary = $hub->broadcast_event($event);
+    $hub->disconnect($connection_id);
+
+=head1 DESCRIPTION
+
+One hub per process, kept by the C<gp_realtime_hub> helper. The websocket
+controller registers each socket and its subscriptions here; the PostgreSQL
+listener hands it every event that arrives from any node. Connections and
+subscriptions live in the C<registry>, a
+L<GPForum::Service::Realtime::ConnectionRegistry>, so they are local to the
+process.
+
+A subscription is granted by the C<authorizer>. Access to a thread is asked
+again at every broadcast (ADR 0102): when C<readability> is set, a
+C<thread:> channel's subscribers are narrowed to those who may read the
+thread now, and an event whose payload names a C<post_id> to those who may
+read that post. A subscriber filtered out stays subscribed and receives
+the thread again once access comes back.
+
+An event goes to channels by its type: C<thread.update> to
+C<< thread:<aggregate_id> >>, C<notification.badge> to
+C<< notifications:<aggregate_id> >>, C<moderation.queue.invalidate> to
+C<moderation:queue>. Any other type goes nowhere.
+
+Badges carry an absolute unread count, so one snapshot corrects whatever a
+socket missed. The count comes from C<badge_counter> (the notification
+dispatcher's C<unread_count_for_user_p>); without one, no badge is sent.
+
+C<subscribe>, C<broadcast>, C<broadcast_event>, C<send_badge_snapshot>,
+C<resend_badge_snapshots> and C<close_ended_sessions> are each written
+once, as their C<_p> method; the blocking form is its declared twin (ADR
+0177), with the authorizer, the badge counter, the readability and the
+session store blocking with it. The collaborators answer promise methods
+(C<authorize_p>, C<unread_count_for_user_p>, C<readers_list_p>,
+C<live_session_ids_p>). The registry, the session check and the counters
+are built with the hub, so a blocking copy shares them.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 new
+
+The Mojo::Base constructor. It builds C<registry>, C<session_check> and
+C<stats> at once: they are the process's state, which the blocking copies
+of an operation share.
+
+=head2 register_connection
+
+Takes a connection id, an actor (a hash reference with C<user_id>, or the
+user id) and the connection object, which must have a C<send> method.
+Returns the registry's row, or undef when the user already holds the
+registry's per-process maximum of sockets.
+
+=head2 disconnect
+
+Takes a connection id. Removes it and its subscriptions; returns the
+removed row, or undef when there was none. The session check stops with the
+last socket.
+
+=head2 close_ended_sessions
+
+Asks C<session_store> (C<live_session_ids_p>, one call for every socket's
+session id) which sessions are live, and closes every other socket -- one
+whose session was signed out, revoked or has expired, and one whose actor
+names no C<session_id> -- with WebSocket code 1008, C<session ended>.
+Returns how many it closed: 0 without a store, and 0 when the store dies,
+which is counted in C<session_check_failures>. While the process holds a
+socket and the hub has an C<ioloop>, it runs every
+C<session_check_seconds> (30) (ADR 0148).
+
+=head2 close_session
+
+Takes a session id and closes this process's sockets of that session at
+once, as C<close_ended_sessions> closes them. Returns how many.
+
+=head2 subscribe
+
+Takes a hash reference with C<actor>, C<channel>, C<connection_id> and an
+optional C<context>. Returns the authorizer's refusal when it refuses, the
+registry's refusal (C<connection_not_found> or
+C<subscription_quota_exceeded>) when that fails, and otherwise
+C<< { ok => 1, channel, reason } >> with the authorizer's reason.
+
+=head2 broadcast
+
+Takes a channel name and the event to send, and sends it as JSON to every
+subscriber of the channel left after the readability filters. Returns
+C<< { ok => 1, channel, delivered, failed } >>; a send that dies or returns
+false counts as failed and is not raised. Native WebSocket recipients share
+one encoded JSON text per broadcast, produced only when a recipient needs
+it. Their controllers bound pending output and close overloaded sockets
+with code 1013; an overloaded send counts as failed.
+
+=head2 send_badge_snapshot
+
+Takes a connection id and sends that connection its user's unread count as
+a C<notification.badge> event. Returns
+C<< { ok => 0, reason => 'connection_not_found' } >> when there is no such
+connection or it has no user, C<< { ok => 0, reason => 'badge_unavailable' } >>
+when there is no C<badge_counter> or it died, and otherwise
+C<< { ok, unread_count } >> with C<ok> 0 when the send failed.
+
+=head2 resend_badge_snapshots
+
+Takes no arguments. Sends a badge to every connection subscribed to at
+least one C<notifications:> channel, reading each user's count once
+however many sockets they hold. Returns the number of badges sent. The
+listener calls it after a gap in notifications.
+
+=head2 connection_count
+
+Returns the number of connections registered in this process.
+
+=head2 broadcast_event
+
+Takes an event. Returns the C<event_contract>'s refusal
+C<< { ok => 0, reason } >> when it does not validate; otherwise
+C<< { ok => 1, delivered, failed, channels } >>, the counts summed over the
+channels the event maps to, with an empty C<channels> when it maps to
+none.
+
+=head2 fallback_state
+
+Returns what a client without a socket should do: C<realtime_required> 0,
+C<poll_after_seconds> 30, and the C<notifications> and C<thread> endpoints
+to poll.
+
+=head2 snapshot
+
+Returns the registry's snapshot (C<connections>, C<subscriptions> and the
+two limits) merged with the hub's counters: C<badge_snapshots>,
+C<broadcast> and C<broadcasts>, C<delivered>, C<failed> and
+C<broadcast_failures>, C<malformed> and C<malformed_events>. The paired
+counters are kept equal.
+
+=head2 broadcast_event_p
+
+The body of L</broadcast_event>. Validates an event and awaits per-channel delivery. Visibility decisions complete before any payload is sent to a subscriber.
+
+=head2 broadcast_p
+
+The body of L</broadcast>. Resolves current thread and post readability before writing to live local sockets. No socket or registry is transferred to a child process.
+
+=head2 close_ended_sessions_p
+
+The body of L</close_ended_sessions>. Reads all local session ids in one asynchronous operation, then closes only sockets still registered whose sessions ended. Lookup failure closes none.
+
+=head2 resend_badge_snapshots_p
+
+The body of L</resend_badge_snapshots>. Reads each subscribed user's count once and sends absolute counts to their still-live local sockets.
+
+=head2 send_badge_snapshot_p
+
+The body of L</send_badge_snapshot>. Awaits the unread count before sending a snapshot to one still-registered connection. Missing or failed counts produce no badge.
+
+=head2 subscribe_p
+
+The body of L</subscribe>. Awaits channel authorization, then updates the local registry if the connection is still registered. An unresolved promise is never treated as permission.
+
+=head1 DIAGNOSTICS
+
+None raised. Failed sends and badge counts are returned and counted. An
+exception from the authorizer or from C<readability> propagates.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None read directly. The registry's per-user and per-connection limits are
+its own attributes.
+
+=head1 DEPENDENCIES
+
+L<Const::Fast>, L<List::Util>, L<Mojo::Base>,
+L<GPForum::Service::Realtime::ChannelAuthorizer>,
+L<GPForum::Service::Realtime::ConnectionRegistry>,
+L<GPForum::Service::Realtime::EventEnvelope>;
+L<GPForum::Service::Forum::Readability> (passed in as C<readability>).
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+The state is per process; a node reaches the sockets of another only
+through the PostgreSQL listener. Without C<readability>, thread and post
+events go to every subscriber of the channel.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

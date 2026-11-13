@@ -1,0 +1,174 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Identity::Admission;
+
+use Mojo::Base 'GPForum::Base', -async_await;
+use v5.40;
+use Mojo::JSON qw(true false);
+use GPForum::Infrastructure::SqlFunction;
+use GPForum::Infrastructure::Id;
+use GPForum::Service::SessionToken;
+use GPForum::X::Unavailable;
+
+our $VERSION = '0.001';
+
+__PACKAGE__->requires('schema');
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+has tokens    => sub { return GPForum::Service::SessionToken->new; };
+
+GPForum::Infrastructure::SqlFunction->blocking_twins(qw(overview change));
+
+# The registration page's read on the worker's pooled asynchronous
+# connections, not a forked child with a connection of its own.
+async sub overview_p ( $self, $actor, $context = undef ) {
+    my $row = await $self->_functions->row_p( 'admin_registration_state',
+        { actor => $actor }, $context );
+    return $row ? $row->{result} : { status => 'forbidden' };
+}
+
+# One api function call, after the checks that refuse a change before it.
+async sub change_p ( $self, $input, $context = undef ) {
+    my $plan = $self->_change_call($input);
+    return $plan->{answer} if $plan->{answer};
+
+    return _changed(
+        $plan,
+        await $self->_functions->row_p(
+            'admin_registration_change', $plan->{values}, $context
+        )
+    );
+}
+
+# The checks a change makes and the call it ends in: an answer when they
+# refuse it, or the call's values with the invitation token it carries.
+sub _change_call ( $self, $input ) {
+    return { answer => { status => 'invalid' } }
+      if !GPForum::Infrastructure::Id->is_uuid( $input->{command} );
+    my $operation = $input->{operation} // q{};
+    my $field =
+      { revoke => 'invitation_id', approve => 'user_id', reject => 'user_id' }
+      ->{$operation};
+    return { answer => { status => 'invalid' } }
+      if $field && !GPForum::Infrastructure::Id->is_uuid( $input->{$field} );
+    my $prepared = $self->_prepare($input);
+    return {
+        operation => $operation,
+        token     => $prepared->{token},
+        values    => {
+            actor     => $input->{actor},
+            command   => $input->{command},
+            operation => $operation,
+            values    => $prepared->{values},
+        },
+    };
+}
+
+sub _changed ( $plan, $row ) {
+    my $result = $row ? $row->{result} : { status => 'invalid' };
+    if (   $plan->{operation} eq 'invite'
+        && $result->{status} eq 'ok'
+        && !$result->{replayed} )
+    {
+        $result->{invitation} = $plan->{token};
+    }
+    return $result;
+}
+
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw(
+        message => 'admission needs the PostgreSQL function layer' );
+}
+
+sub _prepare ( $self, $input ) {
+    my $operation = $input->{operation} // q{};
+    if ( $operation eq 'invite' ) {
+        my $token = $self->tokens->issue_token;
+        return {
+            token  => $token,
+            values => {
+                email      => lc( $input->{email} // q{} ),
+                token_hash => $self->tokens->hash_token($token)
+            }
+        };
+    }
+    if ( $operation eq 'policy' ) {
+        return {
+            values => {
+                mode              => $input->{mode},
+                approval_required => $input->{approval_required} ? true : false
+            }
+        };
+    }
+    my $field = $operation eq 'revoke' ? 'invitation_id' : 'user_id';
+    return { values => { $field => $input->{$field} } };
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Identity::Admission - Registration invitations and staff approval.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    $admission->overview($staff_id);
+    $admission->change({actor => $staff_id, command => $id, operation => 'approve', user_id => $member_id});
+
+=head1 DESCRIPTION
+
+Only PostgreSQL functions read or change admission state. Single-use
+invitations are bound to an email address and expire in seven days. Their
+random secret is returned once; only its hash is stored. Replaying creation
+returns the invitation id without a secret: revoke and issue another if lost.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 overview_p
+
+Reads policy, up to 100 waiting accounts and 100 recent invitations for
+staff, with an optional query context last, on the worker's pooled
+asynchronous connections. C<overview> is its blocking twin.
+
+=head2 change_p
+
+Changes policy, issues or revokes an invitation, or approves/rejects an
+account, in one api function call; an optional query context last.
+C<change> is its blocking twin.
+
+=head1 DIAGNOSTICS
+
+Returns status; database exceptions propagate, and
+L<GPForum::X::Unavailable> without the function layer.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Policy resides in PostgreSQL, open registration without staff approval by default.
+
+=head1 DEPENDENCIES
+
+L<GPForum::Infrastructure::SqlFunction>, L<GPForum::Service::SessionToken>.
+
+=head1 INCOMPATIBILITIES
+
+Requires migration 1026.
+
+=head1 BUGS AND LIMITATIONS
+
+Invitations are copied by the operator; no invitation mail is sent automatically.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. BSD-3-Clause.
+
+=cut

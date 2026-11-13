@@ -1,0 +1,21 @@
+{
+  "application_files": 843,
+  "application_manifest_sha256": "37217ec2d084d59a3e70b409044966c108f152c11232a06362560591cfb1cdae",
+  "baseline": "756374d9720764e4dfc468e45df3c8fb3d469961",
+  "candidate": "2ade1f06b4ea65a591161551c00f9d6abca7b71b",
+  "glifistore_files_changed": [],
+  "harness_sha256": {
+    "benchmarks/hypnotoad-app.pl": "b2f13b60406788b09c9283f49577a870301deeecb23cb073070be942e80c3d58",
+    "script/benchmark-http-complete": "4579495aef2f6318925245b7997d91b7d365c24dd7b86be6bb81628e6c84449d",
+    "script/lib/GPForum/Performance/HTTPCatalog.pm": "f7738b1d0f510afba6060c72446922d42d435ca5f3250f09d178fb244b613c4f",
+    "script/lib/GPForum/Performance/HTTPClient.pm": "bdafdea087900e4039259abcfc52e05a75ca6366e30403278fe2dd685afb6975",
+    "script/lib/GPForum/Performance/HTTPComplete.pm": "4e9b20dc522df7e0c5b28e32733a696851af928ee8659e7bf08e297cecb9a040",
+    "script/lib/GPForum/Performance/HTTPIntegrations.pm": "1770227203e97a1d68ff0777acc1aea1ee4a6bf0d31042f502d64bc3fdfdfb64",
+    "script/lib/GPForum/Performance/HTTPReport.pm": "01cdce4e89ec1d4edc24ecd5f019a543336642e73f955c7f28a105fb8d3e97c8"
+  },
+  "migrations": {
+    "2045_http_request_context.sql": "ac223cb70e75ac995bc449f0b6e6af1cc406114435190e5d8503a452629fb76b",
+    "2046_notification_fanout_pages.sql": "c2f1f71c0b587bd6369f7566052572b835d4e3d2d200bfbb56e21f31769b0784",
+    "2047_request_context_snapshot.sql": "18639a232e338e0a0aa26c1cb2ec52877920baf8f792f1f2e28a40619c0c082c"
+  }
+}

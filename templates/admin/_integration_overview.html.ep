@@ -1,0 +1,38 @@
+<section aria-labelledby="integration-overview-heading">
+  <h2 id="integration-overview-heading"><%= t('admin.integrations_overview') %></h2>
+  <p><%= t('admin.integrations_overview_help') %></p>
+  <div class="admin-plugin-grid">
+    % for my $plugin (@{$overview->{plugins}}) {
+      <article class="integration-card" data-integration-service="<%= $plugin->{id} %>" data-integration-state="<%= $plugin->{state} %>">
+        <h3><%= $plugin->{name} %></h3>
+        % my $status_key='admin.integrations_status_' . $plugin->{state};
+        <p><%= t($status_key) %></p>
+        % if ($plugin->{setting}) {
+          <a href="<%= ui_path('admin_configuration') . '#setting-' . $plugin->{setting} %>"><%= t('admin.integrations_configure_instances') %></a>
+        % } else {
+          <a href="<%= ui_path('admin_plugins') . '#plugin-' . $plugin->{id} %>"><%= t('admin.integrations_manage_module') %></a>
+        % }
+      </article>
+    % }
+    % for my $service (@{$overview->{network}}) {
+      <article class="integration-card" data-integration-service="<%= $service->{id} %>" data-integration-state="<%= $service->{configured} ? 'configured' : 'setup' %>">
+        <h3><%= $service->{name} // t($service->{label_key}) %></h3>
+        <p><%= t($service->{configured} ? 'admin.integrations_status_configured' : 'admin.integrations_status_setup') %></p>
+        <p><a href="<%= ui_path('admin_configuration') . '#setting-' . $service->{setting} %>"><%= t('admin.integrations_configure') %></a></p>
+        % if (@{$service->{missing}}) {
+          <ul>
+          % for my $setting (@{$service->{missing}}) {
+            % my $setting_label='admin.configuration_label_' . $setting;
+            <li><a href="<%= ui_path('admin_configuration') . '#setting-' . $setting %>"><%= t($setting_label) %></a></li>
+          % }
+          </ul>
+        % }
+        % if ($service->{configured}) {
+          <a href="<%= $service->{route} ? ui_path($service->{route}) : '#' . $service->{anchor} %>"><%= t('admin.integrations_open') %></a>
+        % }
+      </article>
+    % }
+  </div>
+  <p><a href="<%= ui_path('new_media') %>"><%= t('media.publish') %></a> · <a href="<%= ui_path('moderation_media') %>"><%= t('nav.menu_uploads') %></a></p>
+  <p><%= t($overview->{worker_enabled} ? 'admin.integrations_workers_configured' : 'admin.integrations_workers_disabled') %> <a href="<%= ui_path('admin_jobs') %>"><%= t('admin.async_jobs') %></a> · <a href="<%= ui_path('admin_settings') . '#admin-configuration-heading' %>"><%= t('admin.configuration_diagnostics') %></a></p>
+</section>

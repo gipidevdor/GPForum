@@ -1,0 +1,811 @@
+{
+  "code_commit": "7fd2c405bdbd1fc0881478d93c22d4a1a1b74426",
+  "database": {
+    "admission": {
+      "approval_required": false,
+      "mode": "open"
+    },
+    "applied_migrations": [
+      "1024",
+      "1025",
+      "1026",
+      "1027",
+      "1028",
+      "1029"
+    ],
+    "login": "existing development owner/superuser; not a provisioned production runtime role",
+    "name": "gpforum_bench",
+    "port": 55433,
+    "postgres": "18.6 (Homebrew)",
+    "preserved_counts": {
+      "posts": 1800,
+      "threads": 120,
+      "users": 26
+    },
+    "published_release_pending_migrations": [],
+    "socket": "/tmp/gpfv"
+  },
+  "kind": "development activation and read-only enforcement check; not a performance benchmark",
+  "limits": [
+    "This is a development instance, not a production deployment verification.",
+    "The declared local shared profile diagnoses eight tuning differences; this was a read-only check and no tuning apply was performed.",
+    "Runtime still uses automatic topology; readiness reports missing RAM/CPU/storage declaration.",
+    "Seventy-five historical fixture notifications remain in DEFAULT; no historical content was rewritten.",
+    "No outbox worker was running or started.",
+    "Concurrent unpublished working-tree changes were excluded."
+  ],
+  "mutations": "Application migrations only. No PostgreSQL tuning, durability, autovacuum, role ownership or global configuration was changed. No PostgreSQL restart.",
+  "profile_check": {
+    "conformant": 0,
+    "default_parameters": [
+      "autovacuum",
+      "autovacuum_max_workers",
+      "checkpoint_completion_target",
+      "checkpoint_timeout",
+      "effective_cache_size",
+      "effective_io_concurrency",
+      "fsync",
+      "full_page_writes",
+      "hash_mem_multiplier",
+      "jit",
+      "maintenance_work_mem",
+      "max_parallel_workers_per_gather",
+      "random_page_cost",
+      "reserved_connections",
+      "superuser_reserved_connections",
+      "synchronous_commit",
+      "track_io_timing",
+      "wal_buffers",
+      "work_mem"
+    ],
+    "findings": [
+      {
+        "expected": "2048MB",
+        "parameter": "shared_buffers",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "6144MB",
+        "parameter": "effective_cache_size",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "128MB",
+        "parameter": "maintenance_work_mem",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "1.1",
+        "parameter": "random_page_cost",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "100",
+        "parameter": "effective_io_concurrency",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "off",
+        "parameter": "jit",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "100",
+        "parameter": "max_connections",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "on",
+        "parameter": "track_io_timing",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      }
+    ],
+    "profile": {
+      "assumptions": "8 work_mem allocations and 10 MiB backend overhead per connection; 4 maintenance allocations. Measure real concurrency, parallelism and RSS.",
+      "budget_mb": 8192,
+      "cpu_count": 10,
+      "estimated_memory_mb": 6760,
+      "issues": [],
+      "memory_mb": 16384,
+      "memory_source": "operator",
+      "name": "shared",
+      "required_connections": 44,
+      "reserve_mb": 8192,
+      "settings": {
+        "effective_cache_size": "6144MB",
+        "effective_io_concurrency": "100",
+        "jit": "off",
+        "maintenance_work_mem": "128MB",
+        "max_connections": "100",
+        "random_page_cost": "1.1",
+        "shared_buffers": "2048MB",
+        "track_io_timing": "on",
+        "work_mem": "4MB"
+      },
+      "storage": "nvme",
+      "sufficient_memory": 1,
+      "valid": 1,
+      "version": 1
+    },
+    "settings": {
+      "autovacuum": {
+        "boot_val": "on",
+        "context": "sighup",
+        "name": "autovacuum",
+        "pending_restart": 0,
+        "reset_val": "on",
+        "setting": "on",
+        "source": "default",
+        "unit": null
+      },
+      "autovacuum_max_workers": {
+        "boot_val": "3",
+        "context": "sighup",
+        "name": "autovacuum_max_workers",
+        "pending_restart": 0,
+        "reset_val": "3",
+        "setting": "3",
+        "source": "default",
+        "unit": null
+      },
+      "checkpoint_completion_target": {
+        "boot_val": "0.9",
+        "context": "sighup",
+        "name": "checkpoint_completion_target",
+        "pending_restart": 0,
+        "reset_val": "0.9",
+        "setting": "0.9",
+        "source": "default",
+        "unit": null
+      },
+      "checkpoint_timeout": {
+        "boot_val": "300",
+        "context": "sighup",
+        "name": "checkpoint_timeout",
+        "pending_restart": 0,
+        "reset_val": "300",
+        "setting": "300",
+        "source": "default",
+        "unit": "s"
+      },
+      "effective_cache_size": {
+        "boot_val": "524288",
+        "context": "user",
+        "name": "effective_cache_size",
+        "pending_restart": 0,
+        "reset_val": "524288",
+        "setting": 524288,
+        "source": "default",
+        "unit": "8kB"
+      },
+      "effective_io_concurrency": {
+        "boot_val": "16",
+        "context": "user",
+        "name": "effective_io_concurrency",
+        "pending_restart": 0,
+        "reset_val": "16",
+        "setting": 16,
+        "source": "default",
+        "unit": null
+      },
+      "fsync": {
+        "boot_val": "on",
+        "context": "sighup",
+        "name": "fsync",
+        "pending_restart": 0,
+        "reset_val": "on",
+        "setting": "on",
+        "source": "default",
+        "unit": null
+      },
+      "full_page_writes": {
+        "boot_val": "on",
+        "context": "sighup",
+        "name": "full_page_writes",
+        "pending_restart": 0,
+        "reset_val": "on",
+        "setting": "on",
+        "source": "default",
+        "unit": null
+      },
+      "hash_mem_multiplier": {
+        "boot_val": "2",
+        "context": "user",
+        "name": "hash_mem_multiplier",
+        "pending_restart": 0,
+        "reset_val": "2",
+        "setting": "2",
+        "source": "default",
+        "unit": null
+      },
+      "jit": {
+        "boot_val": "on",
+        "context": "user",
+        "name": "jit",
+        "pending_restart": 0,
+        "reset_val": "on",
+        "setting": "on",
+        "source": "default",
+        "unit": null
+      },
+      "maintenance_work_mem": {
+        "boot_val": "65536",
+        "context": "user",
+        "name": "maintenance_work_mem",
+        "pending_restart": 0,
+        "reset_val": "65536",
+        "setting": 65536,
+        "source": "default",
+        "unit": "kB"
+      },
+      "max_connections": {
+        "boot_val": "100",
+        "context": "postmaster",
+        "name": "max_connections",
+        "pending_restart": 0,
+        "reset_val": "200",
+        "setting": 200,
+        "source": "command line",
+        "unit": null
+      },
+      "max_parallel_workers_per_gather": {
+        "boot_val": "2",
+        "context": "user",
+        "name": "max_parallel_workers_per_gather",
+        "pending_restart": 0,
+        "reset_val": "2",
+        "setting": "2",
+        "source": "default",
+        "unit": null
+      },
+      "max_wal_size": {
+        "boot_val": "1024",
+        "context": "sighup",
+        "name": "max_wal_size",
+        "pending_restart": 0,
+        "reset_val": "1024",
+        "setting": "1024",
+        "source": "configuration file",
+        "unit": "MB"
+      },
+      "min_wal_size": {
+        "boot_val": "80",
+        "context": "sighup",
+        "name": "min_wal_size",
+        "pending_restart": 0,
+        "reset_val": "80",
+        "setting": "80",
+        "source": "configuration file",
+        "unit": "MB"
+      },
+      "random_page_cost": {
+        "boot_val": "4",
+        "context": "user",
+        "name": "random_page_cost",
+        "pending_restart": 0,
+        "reset_val": "4",
+        "setting": 4.0,
+        "source": "default",
+        "unit": null
+      },
+      "reserved_connections": {
+        "boot_val": "0",
+        "context": "postmaster",
+        "name": "reserved_connections",
+        "pending_restart": 0,
+        "reset_val": "0",
+        "setting": 0,
+        "source": "default",
+        "unit": null
+      },
+      "shared_buffers": {
+        "boot_val": "16384",
+        "context": "postmaster",
+        "name": "shared_buffers",
+        "pending_restart": 0,
+        "reset_val": "16384",
+        "setting": 16384,
+        "source": "configuration file",
+        "unit": "8kB"
+      },
+      "superuser_reserved_connections": {
+        "boot_val": "3",
+        "context": "postmaster",
+        "name": "superuser_reserved_connections",
+        "pending_restart": 0,
+        "reset_val": "3",
+        "setting": 3,
+        "source": "default",
+        "unit": null
+      },
+      "synchronous_commit": {
+        "boot_val": "on",
+        "context": "user",
+        "name": "synchronous_commit",
+        "pending_restart": 0,
+        "reset_val": "on",
+        "setting": "on",
+        "source": "default",
+        "unit": null
+      },
+      "track_io_timing": {
+        "boot_val": "off",
+        "context": "superuser",
+        "name": "track_io_timing",
+        "pending_restart": 0,
+        "reset_val": "off",
+        "setting": "off",
+        "source": "default",
+        "unit": null
+      },
+      "wal_buffers": {
+        "boot_val": "-1",
+        "context": "postmaster",
+        "name": "wal_buffers",
+        "pending_restart": 0,
+        "reset_val": "512",
+        "setting": "512",
+        "source": "default",
+        "unit": "8kB"
+      },
+      "work_mem": {
+        "boot_val": "4096",
+        "context": "user",
+        "name": "work_mem",
+        "pending_restart": 0,
+        "reset_val": "4096",
+        "setting": 4096,
+        "source": "default",
+        "unit": "kB"
+      }
+    },
+    "status": "degraded",
+    "topology": "local"
+  },
+  "readiness": {
+    "http_status": 200,
+    "non_ok_checks": [
+      {
+        "latency_ms": 1,
+        "name": "partition_horizon",
+        "report": {
+          "problems": [
+            "notifications_default holds rows, so the partition window fell behind; see docs/ops/partition-maintenance.md"
+          ],
+          "status": "degraded",
+          "tables": [
+            {
+              "days_left": 69,
+              "default_rows": 0,
+              "horizon": "2027-01-01",
+              "table": "audit_log"
+            },
+            {
+              "days_left": 69,
+              "default_rows": 0,
+              "horizon": "2027-01-01",
+              "table": "event_log"
+            },
+            {
+              "days_left": 69,
+              "default_rows": 1,
+              "horizon": "2027-01-01",
+              "table": "notifications"
+            }
+          ],
+          "warning_days": 45
+        },
+        "runbook": "docs/ops/partition-maintenance.md",
+        "status": "degraded"
+      },
+      {
+        "latency_ms": 7,
+        "name": "postgres_performance",
+        "reason": "profile: Declare database RAM and CPU cores; application host resources are not database resources; profile: Declare database storage class before applying a profile",
+        "report": {
+          "applied_by_gpforum": 0,
+          "available": 1,
+          "changes": [],
+          "conformant": 0,
+          "default_parameters": [
+            "autovacuum",
+            "autovacuum_max_workers",
+            "checkpoint_completion_target",
+            "checkpoint_timeout",
+            "effective_cache_size",
+            "effective_io_concurrency",
+            "fsync",
+            "full_page_writes",
+            "hash_mem_multiplier",
+            "jit",
+            "maintenance_work_mem",
+            "max_parallel_workers_per_gather",
+            "random_page_cost",
+            "reserved_connections",
+            "superuser_reserved_connections",
+            "synchronous_commit",
+            "track_io_timing",
+            "wal_buffers",
+            "work_mem"
+          ],
+          "findings": [
+            {
+              "parameter": "profile",
+              "reason": "Declare database RAM and CPU cores; application host resources are not database resources",
+              "severity": "recommendation"
+            },
+            {
+              "parameter": "profile",
+              "reason": "Declare database storage class before applying a profile",
+              "severity": "recommendation"
+            }
+          ],
+          "profile": {
+            "assumptions": "8 work_mem allocations and 10 MiB backend overhead per connection; 4 maintenance allocations. Measure real concurrency, parallelism and RSS.",
+            "budget_mb": 0,
+            "cpu_count": 0,
+            "estimated_memory_mb": null,
+            "issues": [
+              "Declare database RAM and CPU cores; application host resources are not database resources",
+              "Declare database storage class before applying a profile"
+            ],
+            "memory_mb": 0,
+            "memory_source": "operator",
+            "name": "shared",
+            "required_connections": 44,
+            "reserve_mb": 0,
+            "settings": {},
+            "storage": "unknown",
+            "sufficient_memory": 0,
+            "valid": 0,
+            "version": 1
+          },
+          "required_connections": 44,
+          "settings": {
+            "autovacuum": {
+              "boot_val": "on",
+              "context": "sighup",
+              "name": "autovacuum",
+              "pending_restart": 0,
+              "reset_val": "on",
+              "setting": "on",
+              "source": "default",
+              "unit": null
+            },
+            "autovacuum_max_workers": {
+              "boot_val": "3",
+              "context": "sighup",
+              "name": "autovacuum_max_workers",
+              "pending_restart": 0,
+              "reset_val": "3",
+              "setting": "3",
+              "source": "default",
+              "unit": null
+            },
+            "checkpoint_completion_target": {
+              "boot_val": "0.9",
+              "context": "sighup",
+              "name": "checkpoint_completion_target",
+              "pending_restart": 0,
+              "reset_val": "0.9",
+              "setting": "0.9",
+              "source": "default",
+              "unit": null
+            },
+            "checkpoint_timeout": {
+              "boot_val": "300",
+              "context": "sighup",
+              "name": "checkpoint_timeout",
+              "pending_restart": 0,
+              "reset_val": "300",
+              "setting": "300",
+              "source": "default",
+              "unit": "s"
+            },
+            "effective_cache_size": {
+              "boot_val": "524288",
+              "context": "user",
+              "name": "effective_cache_size",
+              "pending_restart": 0,
+              "reset_val": "524288",
+              "setting": "524288",
+              "source": "default",
+              "unit": "8kB"
+            },
+            "effective_io_concurrency": {
+              "boot_val": "16",
+              "context": "user",
+              "name": "effective_io_concurrency",
+              "pending_restart": 0,
+              "reset_val": "16",
+              "setting": "16",
+              "source": "default",
+              "unit": null
+            },
+            "fsync": {
+              "boot_val": "on",
+              "context": "sighup",
+              "name": "fsync",
+              "pending_restart": 0,
+              "reset_val": "on",
+              "setting": "on",
+              "source": "default",
+              "unit": null
+            },
+            "full_page_writes": {
+              "boot_val": "on",
+              "context": "sighup",
+              "name": "full_page_writes",
+              "pending_restart": 0,
+              "reset_val": "on",
+              "setting": "on",
+              "source": "default",
+              "unit": null
+            },
+            "hash_mem_multiplier": {
+              "boot_val": "2",
+              "context": "user",
+              "name": "hash_mem_multiplier",
+              "pending_restart": 0,
+              "reset_val": "2",
+              "setting": "2",
+              "source": "default",
+              "unit": null
+            },
+            "jit": {
+              "boot_val": "on",
+              "context": "user",
+              "name": "jit",
+              "pending_restart": 0,
+              "reset_val": "on",
+              "setting": "on",
+              "source": "default",
+              "unit": null
+            },
+            "maintenance_work_mem": {
+              "boot_val": "65536",
+              "context": "user",
+              "name": "maintenance_work_mem",
+              "pending_restart": 0,
+              "reset_val": "65536",
+              "setting": "65536",
+              "source": "default",
+              "unit": "kB"
+            },
+            "max_connections": {
+              "boot_val": "100",
+              "context": "postmaster",
+              "name": "max_connections",
+              "pending_restart": 0,
+              "reset_val": "200",
+              "setting": 200,
+              "source": "command line",
+              "unit": null
+            },
+            "max_parallel_workers_per_gather": {
+              "boot_val": "2",
+              "context": "user",
+              "name": "max_parallel_workers_per_gather",
+              "pending_restart": 0,
+              "reset_val": "2",
+              "setting": "2",
+              "source": "default",
+              "unit": null
+            },
+            "max_wal_size": {
+              "boot_val": "1024",
+              "context": "sighup",
+              "name": "max_wal_size",
+              "pending_restart": 0,
+              "reset_val": "1024",
+              "setting": "1024",
+              "source": "configuration file",
+              "unit": "MB"
+            },
+            "min_wal_size": {
+              "boot_val": "80",
+              "context": "sighup",
+              "name": "min_wal_size",
+              "pending_restart": 0,
+              "reset_val": "80",
+              "setting": "80",
+              "source": "configuration file",
+              "unit": "MB"
+            },
+            "random_page_cost": {
+              "boot_val": "4",
+              "context": "user",
+              "name": "random_page_cost",
+              "pending_restart": 0,
+              "reset_val": "4",
+              "setting": "4",
+              "source": "default",
+              "unit": null
+            },
+            "reserved_connections": {
+              "boot_val": "0",
+              "context": "postmaster",
+              "name": "reserved_connections",
+              "pending_restart": 0,
+              "reset_val": "0",
+              "setting": 0,
+              "source": "default",
+              "unit": null
+            },
+            "shared_buffers": {
+              "boot_val": "16384",
+              "context": "postmaster",
+              "name": "shared_buffers",
+              "pending_restart": 0,
+              "reset_val": "16384",
+              "setting": "16384",
+              "source": "configuration file",
+              "unit": "8kB"
+            },
+            "superuser_reserved_connections": {
+              "boot_val": "3",
+              "context": "postmaster",
+              "name": "superuser_reserved_connections",
+              "pending_restart": 0,
+              "reset_val": "3",
+              "setting": 3,
+              "source": "default",
+              "unit": null
+            },
+            "synchronous_commit": {
+              "boot_val": "on",
+              "context": "user",
+              "name": "synchronous_commit",
+              "pending_restart": 0,
+              "reset_val": "on",
+              "setting": "on",
+              "source": "default",
+              "unit": null
+            },
+            "track_io_timing": {
+              "boot_val": "off",
+              "context": "superuser",
+              "name": "track_io_timing",
+              "pending_restart": 0,
+              "reset_val": "off",
+              "setting": "off",
+              "source": "default",
+              "unit": null
+            },
+            "wal_buffers": {
+              "boot_val": "-1",
+              "context": "postmaster",
+              "name": "wal_buffers",
+              "pending_restart": 0,
+              "reset_val": "512",
+              "setting": "512",
+              "source": "default",
+              "unit": "8kB"
+            },
+            "work_mem": {
+              "boot_val": "4096",
+              "context": "user",
+              "name": "work_mem",
+              "pending_restart": 0,
+              "reset_val": "4096",
+              "setting": "4096",
+              "source": "default",
+              "unit": "kB"
+            }
+          },
+          "status": "degraded",
+          "strict": 0,
+          "topology": "auto"
+        },
+        "runbook": "docs/ops/postgres-performance.md",
+        "status": "degraded"
+      }
+    ],
+    "notifications_default_created_at_range": [
+      "2026-05-24T16:21:00Z",
+      "2026-05-24T17:35:00Z"
+    ],
+    "notifications_default_exact_count": 75,
+    "status": "degraded"
+  },
+  "recorded_at_utc": "2026-10-23T16:32:06.035079+00:00",
+  "runtime_equivalence": "The two commits differ only in documentation and one test.",
+  "runtime_source_commit": "6bc1850340a117f267375baefcd2cc3111f2cd85",
+  "strict_verify": {
+    "exit_status": 1,
+    "findings": [
+      {
+        "expected": "2048MB",
+        "parameter": "shared_buffers",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "6144MB",
+        "parameter": "effective_cache_size",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "128MB",
+        "parameter": "maintenance_work_mem",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "1.1",
+        "parameter": "random_page_cost",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "100",
+        "parameter": "effective_io_concurrency",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "off",
+        "parameter": "jit",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "100",
+        "parameter": "max_connections",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      },
+      {
+        "expected": "on",
+        "parameter": "track_io_timing",
+        "reason": "effective value differs from selected profile",
+        "severity": "recommendation"
+      }
+    ],
+    "status": "fail",
+    "strict": 1
+  },
+  "validation": {
+    "ci": {
+      "status": "success",
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/39984546015"
+    },
+    "debian": {
+      "files": 603,
+      "status": "success",
+      "tests": 29647,
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/39984546021"
+    },
+    "local_published_snapshot": {
+      "files": 603,
+      "log_origin": "prove -l -j4 -r t; DB-dependent integration skipped here",
+      "status": "PASS",
+      "tests": 17873
+    },
+    "postgres_16_17_18": {
+      "code_commit": "6bc1850340a117f267375baefcd2cc3111f2cd85",
+      "status": "success",
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/39977006913"
+    },
+    "shared_runner_5000_connections": {
+      "code_commit": "6bc1850340a117f267375baefcd2cc3111f2cd85",
+      "limitation": "Separate four-worker, three-second-timeout stress gate. Not rerun for the documentation/test-only fix; no paired regression attribution.",
+      "status": "failed",
+      "transport_timeouts_by_repetition": [
+        8097,
+        7476,
+        2857
+      ],
+      "url": "https://github.com/gpicchiarelli/GPForum/actions/runs/39977006751"
+    }
+  }
+}

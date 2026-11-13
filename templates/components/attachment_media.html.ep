@@ -1,0 +1,11 @@
+% my $kind = $attachment->{media_type} // q{};
+% my $label = $attachment->{original_filename} // q{};
+% if ($kind =~ m{\Aimage/}) {
+% my $preview_url = Mojo::URL->new("$media_url");
+% $preview_url->query->param(preview => 1280);
+  <a href="<%= $media_url %>" class="attachment-media__image-link"><img class="attachment-media__image" src="<%= $preview_url %>" alt="<%= $label %>" loading="lazy" decoding="async"></a>
+% } elsif ($kind =~ m{\Avideo/}) {
+  <video class="attachment-media__video" controls playsinline preload="metadata" aria-label="<%= $label %>"><source src="<%= $media_url %>" type="<%= $kind %>"><a href="<%= $media_url %>"><%= $label %></a></video>
+% } elsif ($kind =~ m{\Aaudio/}) {
+  <audio class="attachment-media__audio" controls preload="none" aria-label="<%= $label %>"><source src="<%= $media_url %>" type="<%= $kind %>"><a href="<%= $media_url %>"><%= $label %></a></audio>
+% }

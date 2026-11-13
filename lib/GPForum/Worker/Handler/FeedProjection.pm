@@ -1,0 +1,297 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Worker::Handler::FeedProjection;
+
+use Const::Fast;
+use Mojo::Base -base, -signatures;
+use v5.40;
+
+use GPForum::Infrastructure::Text qw(has_text);
+use GPForum::Jobs::EventPayload;
+use GPForum::X::Unavailable;
+use GPForum::Service::Clock;
+
+use GPForum::Infrastructure::SqlFunction;
+
+our $VERSION = '0.001';
+
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+
+const my $THREAD_CREATED   => 'thread.created';
+const my $THREAD_DELETED   => 'thread.deleted';
+const my $THREAD_HIDDEN    => 'thread.hidden';
+const my $THREAD_RESTORED  => 'thread.restored';
+const my $THREAD_UNDELETED => 'thread.undeleted';
+const my $POST_CREATED     => 'post.created';
+const my $POST_UPDATED     => 'post.updated';
+const my $POST_DELETED     => 'post.deleted';
+const my $POST_HIDDEN      => 'post.hidden';
+const my $POST_RESTORED    => 'post.restored';
+const my $POST_UNDELETED   => 'post.undeleted';
+const my $THREAD_TARGET    => 'thread';
+const my $POST_ITEM        => 'post';
+
+const my %SUPPORTED => (
+    $POST_CREATED     => 1,
+    $POST_DELETED     => 1,
+    $POST_HIDDEN      => 1,
+    $POST_RESTORED    => 1,
+    $POST_UNDELETED   => 1,
+    $POST_UPDATED     => 1,
+    $THREAD_CREATED   => 1,
+    $THREAD_DELETED   => 1,
+    $THREAD_HIDDEN    => 1,
+    $THREAD_RESTORED  => 1,
+    $THREAD_UNDELETED => 1,
+);
+
+const my %FEED_HIDE => (
+    $POST_DELETED   => 1,
+    $POST_HIDDEN    => 1,
+    $THREAD_DELETED => 1,
+    $THREAD_HIDDEN  => 1,
+);
+
+const my %THREAD_ITEM => (
+    $THREAD_CREATED   => 1,
+    $THREAD_DELETED   => 1,
+    $THREAD_HIDDEN    => 1,
+    $THREAD_RESTORED  => 1,
+    $THREAD_UNDELETED => 1,
+);
+
+has clock              => sub { return GPForum::Service::Clock->new; };
+has projector          => undef;    # optional: task is only captured
+has schema             => undef;    # optional: task is only captured
+has sink               => undef;    # optional: tests capture tasks
+has subscription_store => undef;    # optional: no fan-out without it
+
+sub supports ( $, $event ) {
+    my $event_type = $event->{event_type};
+    return 0 if !defined $event_type;
+    return exists $SUPPORTED{$event_type} ? 1 : 0;
+}
+
+sub handle ( $self, $event ) {
+    my $task = {
+        action    => _is_hide($event) ? 'feed.remove' : 'feed.project',
+        event_id  => $event->{event_id},
+        item_id   => $event->{aggregate_id},
+        item_type => _is_thread_item($event) ? $THREAD_TARGET : $POST_ITEM,
+    };
+    if ( $self->sink ) {
+        $self->sink->capture($task);
+    }
+
+    if ( _is_hide($event) ) {
+        $task->{removed} = $self->_remove($task);
+    }
+    else {
+        $task->{projected} = $self->_project( $event, $task );
+    }
+
+    return $task;
+}
+
+sub _project ( $self, $event, $task ) {
+    return undef if !$self->projector;
+
+    return $self->projector->project_item(
+        {
+            created_at => $event->{timestamp} // $event->{occurred_at}
+              // $self->clock->now_iso8601,
+            item_id   => $task->{item_id},
+            item_type => $task->{item_type},
+            user_ids  => $self->_user_ids($event),
+        }
+    );
+}
+
+# A thread's items go at once; anything else is removed as one item.
+sub _remove ( $self, $task ) {
+    my $projector = $self->projector;
+    return undef if !$projector;
+
+    if ( $task->{item_type} eq $THREAD_TARGET ) {
+        return $projector->remove_thread( $task->{item_id} );
+    }
+
+    return $projector->remove_item(
+        {
+            item_id   => $task->{item_id},
+            item_type => $task->{item_type},
+        }
+    );
+}
+
+# The author and the thread's subscribers, each once. _subscriber_ids is a
+# list: the subscription store returns one.
+sub _user_ids ( $self, $event ) {
+    my %seen;
+
+    return [ grep { defined && length && !$seen{$_}++ }
+          ( $self->_author_id($event), $self->_subscriber_ids($event) ) ];
+}
+
+sub _author_id ( $self, $event ) {
+    my $author = GPForum::Jobs::EventPayload->value( $event, 'author_user_id' );
+    return $author            if has_text($author);
+    return $event->{actor_id} if _is_create($event);
+
+    return $self->_schema_column( $event, 'author_user_id' );
+}
+
+sub _subscriber_ids ( $self, $event ) {
+    return undef if !$self->subscription_store;
+
+    my $thread_id = $self->_thread_id($event);
+    return undef if !has_text($thread_id);
+
+    return $self->subscription_store->subscribers_for( $THREAD_TARGET,
+        $thread_id );
+}
+
+sub _thread_id ( $self, $event ) {
+    if ( _is_thread_item($event) ) {
+        return $event->{aggregate_id};
+    }
+
+    my $thread_id = GPForum::Jobs::EventPayload->value( $event, 'thread_id' );
+    return $thread_id if has_text($thread_id);
+
+    return $self->_schema_column( $event, 'thread_id' );
+}
+
+# The stored post's or thread's column, through api.ops_worker_aggregate.
+# A handler given neither a schema nor a call layer only captures its task.
+sub _schema_column ( $self, $event, $name ) {
+    return undef if !$self->schema && !$self->functions;
+
+    my $row = $self->_functions->row(
+        'ops_worker_aggregate',
+        {
+            aggregate_type => _is_thread_item($event) ? 'thread' : 'post',
+            aggregate_id   => $event->{aggregate_id},
+        }
+    );
+
+    return $row ? $row->{$name} : undef;
+}
+
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw(
+        message => 'the feed projection needs the PostgreSQL function layer' );
+}
+
+sub _is_hide ($event) {
+    my $event_type = $event->{event_type};
+    if ( !defined $event_type ) {
+        return 0;
+    }
+
+    return exists $FEED_HIDE{$event_type} ? 1 : 0;
+}
+
+# A creation's actor is its author. An edit's is its editor, a moderator
+# perhaps, so an edit reads the stored author as a restore does: taking the
+# actor put a moderator's edit of someone else's post in the moderator's
+# own feed.
+sub _is_create ($event) {
+    my $event_type = $event->{event_type} || q{};
+
+    return $event_type eq $THREAD_CREATED || $event_type eq $POST_CREATED
+      ? 1
+      : 0;
+}
+
+sub _is_thread_item ($event) {
+    my $event_type = $event->{event_type};
+    if ( !defined $event_type ) {
+        return 0;
+    }
+
+    return exists $THREAD_ITEM{$event_type} ? 1 : 0;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Worker::Handler::FeedProjection - Project created posts and threads.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $handler = GPForum::Worker::Handler::FeedProjection->new(
+        projector          => $projector,
+        subscription_store => $subscriptions,
+    );
+    $handler->handle($event) if $handler->supports($event);
+
+=head1 DESCRIPTION
+
+Outbox handler for C<thread.created>, C<thread.deleted>, C<thread.hidden>,
+C<thread.restored>, C<thread.undeleted>, C<post.created>,
+C<post.updated>, C<post.deleted>, C<post.hidden>, C<post.restored>, and
+C<post.undeleted>. Create,
+update, restore, and author undelete call
+L<GPForum::Service::Community::FeedProjector/project_item> for the author and
+active thread subscribers. Hide and author post delete call
+L<GPForum::Service::Community::FeedProjector/remove_item>. Author thread
+delete and moderation thread hide call
+L<GPForum::Service::Community::FeedProjector/remove_thread> so C</feed>
+drops the thread item and every post item in that thread.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 supports
+
+True for created thread and post events, plus post hide, restore, author
+post delete, author post undelete, author thread delete, author thread
+undelete, and moderation thread hide/restore.
+
+=head2 handle
+
+Projects or removes feed items and records a sink task when configured.
+
+=head1 DIAGNOSTICS
+
+Missing recipients produce C<projected = 0>. Missing item keys produce
+C<removed = 0>. Projector and subscription lookup errors propagate to the
+outbox dispatcher. A stored author or thread is read through
+C<api.ops_worker_aggregate>; a handler given a schema without the function
+layer throws L<GPForum::X::Unavailable> when it needs one.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Wired from L<GPForum::Bootstrap::Workers> onto the existing outbox transport.
+
+=head1 DEPENDENCIES
+
+Uses L<Const::Fast>, L<Mojo::Base>, and L<GPForum::Service::Clock>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There is no C<thread.hidden> event; locked threads stay readable and keep
+their feed rows. Category subscriptions are not consulted.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

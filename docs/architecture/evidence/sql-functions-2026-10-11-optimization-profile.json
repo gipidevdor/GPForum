@@ -1,0 +1,210 @@
+{
+  "captured_at_utc": "2026-10-11T13:26:03Z",
+  "code_commit": "8316f283a12b2894951ab4c892e1f6324e611a7f",
+  "profiles": [
+    {
+      "assertions": 437,
+      "command": "env -u GPFORUM_TEST_DSN GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55433' GPFORUM_DATABASE_USER=gpforum GPFORUM_DATABASE_PASSWORD='' NYTPROF='file=var/profile/search-optimization.out:addpid=1' script/profile-nytprof -- -Ilib -It/lib t/integration/postgres-search-optimization.t",
+      "csv": {
+        "file_count": 800,
+        "focal_csv_files": [
+          {
+            "bytes": 41296,
+            "modified_at_utc": "2026-10-11T13:18:55Z",
+            "path": "var/profile/search-optimization-csv/Searcher-pm-609-line.csv",
+            "sha256": "1901420b21ed29c68cea1c76593f41c2879fce88cf0360e6e5b161eac7a4e286"
+          },
+          {
+            "bytes": 10402,
+            "modified_at_utc": "2026-10-11T13:18:55Z",
+            "path": "var/profile/search-optimization-csv/SqlFunction-pm-535-line.csv",
+            "sha256": "e1cb32ea55d5d221fffca7bc94662cef1485b8cd97e68898d5ecb3339d633320"
+          },
+          {
+            "bytes": 10571,
+            "modified_at_utc": "2026-10-11T13:18:55Z",
+            "path": "var/profile/search-optimization-csv/ThreadDetailReader-pm-554-line.csv",
+            "sha256": "2efde3e19daf409ac7d14298ae8f32b44c2d5b7c70f412f6fd69813537c13f05"
+          }
+        ],
+        "path": "var/profile/search-optimization-csv",
+        "sorted_sha256_manifest": {
+          "bytes": 84095,
+          "modified_at_utc": "2026-10-11T13:26:02Z",
+          "path": "gpforum-quality-8316f283-search-optimization-csv-manifest.tsv",
+          "sha256": "ae6ef4b2596c2ba9a84ecd26d8b950baabdb20ec0e2e6ad835bf7d35041c726a"
+        },
+        "total_bytes": 10437179
+      },
+      "focal_subroutines": [
+        {
+          "calls": 496,
+          "exclusive_profiled_seconds": 0.005714,
+          "inclusive_profiled_seconds": 3.211043,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::_execute"
+        },
+        {
+          "calls": 496,
+          "exclusive_profiled_seconds": 0.005572,
+          "inclusive_profiled_seconds": 3.150198,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::_fetch"
+        },
+        {
+          "calls": 496,
+          "exclusive_profiled_seconds": 0.00519,
+          "inclusive_profiled_seconds": 3.241221,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::rows"
+        },
+        {
+          "calls": 330,
+          "exclusive_profiled_seconds": 0.005935,
+          "inclusive_profiled_seconds": 1.905462,
+          "subroutine": "GPForum::Service::Search::Searcher::_rows_by_function"
+        },
+        {
+          "calls": 160,
+          "exclusive_profiled_seconds": 0.008378,
+          "inclusive_profiled_seconds": 0.683401,
+          "subroutine": "GPForum::Service::Search::Searcher::autocomplete"
+        },
+        {
+          "calls": 170,
+          "exclusive_profiled_seconds": 0.011973,
+          "inclusive_profiled_seconds": 3.04751,
+          "subroutine": "GPForum::Service::Search::Searcher::ranked_search"
+        }
+      ],
+      "name": "search-optimization",
+      "profiler": {
+        "active_seconds": 8.12457297457886,
+        "duration_seconds": 8.61395597457886,
+        "end_at_utc": "2026-10-11T13:18:51Z",
+        "end_unix_seconds": 1791724731.87414,
+        "start_at_utc": "2026-10-11T13:18:43Z",
+        "start_unix_seconds": 1791724723.26018,
+        "version": "6.15"
+      },
+      "raw": {
+        "bytes": 80199287,
+        "modified_at_utc": "2026-10-11T13:18:51Z",
+        "path": "var/profile/search-optimization.out.7537",
+        "sha256": "2c07ee76a2e113db5fef090e3fe10009ea2f7da82b64da669345c627cf5b8e83"
+      },
+      "result": "PASS",
+      "test_file": "t/integration/postgres-search-optimization.t"
+    },
+    {
+      "assertions": 86,
+      "command": "env -u GPFORUM_TEST_DSN GPFORUM_DATABASE_DSN='dbi:Pg:dbname=postgres;host=127.0.0.1;port=55433' GPFORUM_DATABASE_USER=gpforum GPFORUM_DATABASE_PASSWORD='' NYTPROF='file=var/profile/post-context.out:addpid=1' script/profile-nytprof -- -Ilib -It/lib t/integration/postgres-sql-function-post-context.t",
+      "csv": {
+        "file_count": 767,
+        "focal_csv_files": [
+          {
+            "bytes": 42046,
+            "modified_at_utc": "2026-10-11T13:18:56Z",
+            "path": "var/profile/post-context-csv/PostingWorkflow-pm-614-line.csv",
+            "sha256": "019a8319b271eb48a79c1f8d6909c7d82e00d08bc825a6e8754b73213c1819c9"
+          },
+          {
+            "bytes": 10355,
+            "modified_at_utc": "2026-10-11T13:18:56Z",
+            "path": "var/profile/post-context-csv/SqlFunction-pm-88-line.csv",
+            "sha256": "dc5a6431e522da33c7bbfc95eabab486accd0486717784f7428002e5a578a069"
+          },
+          {
+            "bytes": 10591,
+            "modified_at_utc": "2026-10-11T13:18:56Z",
+            "path": "var/profile/post-context-csv/ThreadDetailReader-pm-619-line.csv",
+            "sha256": "49a1ec401f3990a328c4314c7ee6660562b3766f395195a8826c6efbc18eb7c0"
+          }
+        ],
+        "path": "var/profile/post-context-csv",
+        "sorted_sha256_manifest": {
+          "bytes": 80726,
+          "modified_at_utc": "2026-10-11T13:26:03Z",
+          "path": "gpforum-quality-8316f283-post-context-csv-manifest.tsv",
+          "sha256": "39fa8f25f74363e475ff054281a14ae0f911cb5265b2c7c362d43639a50bea1d"
+        },
+        "total_bytes": 10281496
+      },
+      "focal_subroutines": [
+        {
+          "calls": 31,
+          "exclusive_profiled_seconds": 0.000351,
+          "inclusive_profiled_seconds": 0.027547,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::_execute"
+        },
+        {
+          "calls": 31,
+          "exclusive_profiled_seconds": 0.000217,
+          "inclusive_profiled_seconds": 0.024833,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::_fetch"
+        },
+        {
+          "calls": 33,
+          "exclusive_profiled_seconds": 0.000266,
+          "inclusive_profiled_seconds": 0.029014,
+          "subroutine": "GPForum::Infrastructure::SqlFunction::rows"
+        },
+        {
+          "calls": 40,
+          "exclusive_profiled_seconds": 0.000721,
+          "inclusive_profiled_seconds": 0.019798,
+          "subroutine": "GPForum::Service::Forum::PostingWorkflow::_post_checked"
+        },
+        {
+          "calls": 8,
+          "exclusive_profiled_seconds": 0.000335,
+          "inclusive_profiled_seconds": 0.025951,
+          "subroutine": "GPForum::Service::Forum::PostingWorkflow::_run_by_function"
+        },
+        {
+          "calls": 3,
+          "exclusive_profiled_seconds": 1e-05,
+          "inclusive_profiled_seconds": 0.005709,
+          "subroutine": "GPForum::Service::Forum::PostingWorkflow::delete_post"
+        },
+        {
+          "calls": 4,
+          "exclusive_profiled_seconds": 1.6e-05,
+          "inclusive_profiled_seconds": 0.018079,
+          "subroutine": "GPForum::Service::Forum::PostingWorkflow::edit_post"
+        },
+        {
+          "calls": 1,
+          "exclusive_profiled_seconds": 4e-06,
+          "inclusive_profiled_seconds": 0.002244,
+          "subroutine": "GPForum::Service::Forum::PostingWorkflow::restore_post"
+        },
+        {
+          "calls": 37,
+          "exclusive_profiled_seconds": 0.000115,
+          "inclusive_profiled_seconds": 0.00121,
+          "subroutine": "GPForum::Service::Forum::ThreadDetailReader::visible_thread_row"
+        }
+      ],
+      "name": "post-context",
+      "profiler": {
+        "active_seconds": 1.36420086003113,
+        "duration_seconds": 1.50491786003113,
+        "end_at_utc": "2026-10-11T13:18:53Z",
+        "end_unix_seconds": 1791724733.57512,
+        "start_at_utc": "2026-10-11T13:18:52Z",
+        "start_unix_seconds": 1791724732.0702,
+        "version": "6.15"
+      },
+      "raw": {
+        "bytes": 28408574,
+        "modified_at_utc": "2026-10-11T13:18:53Z",
+        "path": "var/profile/post-context.out.7923",
+        "sha256": "360af4a5eccd28869df8056ac63066263469ea385954336be55ddd1eeea40446"
+      },
+      "result": "PASS",
+      "test_file": "t/integration/postgres-sql-function-post-context.t"
+    }
+  ],
+  "schema_version": 1,
+  "timing_scope": "NYTProf captures the entire disposable integration test including setup, fixture, access checks and differential before/after paths. These profiled elapsed times include profiler overhead and database waits; they are not operation latency or performance benchmark results.",
+  "published_scope": "Compact NYTProf metadata and selected subroutine summaries; binary profiles and full CSV exports are local artifacts, not committed",
+  "summary_source": "NYTProf::SubInfo, decoded from each successful profile"
+}

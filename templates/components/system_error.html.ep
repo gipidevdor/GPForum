@@ -1,0 +1,10 @@
+% my $reference = stash('system_reference');
+<section class="ui-empty-state" aria-labelledby="system-error-heading">
+  <p class="ui-page-description"><%= stash('code') %></p>
+  <h1 id="system-error-heading"><%= stash('heading') %></h1>
+  <p><%= stash('message') %></p>
+  <p><a class="button" href="<%= url_for('home') %>"><%= t('ui.back_to_forum') %></a></p>
+  % if (defined $reference && length $reference) {
+    <p class="metadata"><%= t('ui.request_reference') %>: <code><%= $reference %></code></p>
+  % }
+</section>

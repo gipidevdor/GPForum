@@ -1,0 +1,520 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Admin::Settings;
+
+use Const::Fast;
+use Mojo::Base -base, -async_await;
+use v5.40;
+
+use GPForum::Config::Report;
+
+our $VERSION = '0.001';
+
+const my $REDACTED => '[redacted]';
+
+# Where an operator changes what this page shows. Configuration lives in the
+# service's environment by design (GPForum::Config); the console reads it and
+# never writes it. Both services read the file only when they start: the web
+# service, and the outbox worker that sends the mail with the mail settings
+# this page lists. Restarting the first alone left the worker sending with
+# the old ones.
+const my %CHANGE => (
+    file            => '/etc/gpforum/gpforum.env',
+    freebsd_file    => '/usr/local/etc/gpforum/gpforum.env',
+    restart         => 'systemctl restart gpforum gpforum-outbox',
+    freebsd_restart =>
+      'service gpforum restart && service gpforum_outbox restart',
+);
+
+# Every variable GPForum::Config reads, with the Config attribute holding its
+# effective value, grouped as an operator looks for them. t/212 fails when
+# Config reads a GPFORUM_ variable missing here, so a new setting cannot be
+# left off the page.
+const my @SECTIONS => (
+    {
+        name     => 'application',
+        settings => [
+            [ GPFORUM_ENV                      => 'environment' ],
+            [ GPFORUM_PUSH_CONCURRENCY         => 'push_concurrency' ],
+            [ GPFORUM_PUSH_PER_PROVIDER        => 'push_per_provider' ],
+            [ GPFORUM_PUSH_ENABLED             => 'push_enabled' ],
+            [ GPFORUM_PUSH_CONTACT             => 'push_contact' ],
+            [ GPFORUM_PUSH_KEY_DIRECTORY       => 'push_key_directory' ],
+            [ GPFORUM_PUSH_PROVIDERS           => 'push_providers' ],
+            [ GPFORUM_WEBSUB_HUB_URL           => 'websub_hub_url' ],
+            [ GPFORUM_PUBLIC_BASE_URL          => 'public_base_url' ],
+            [ GPFORUM_SITE_NAME                => 'site_name' ],
+            [ GPFORUM_SITE_DESCRIPTION         => 'site_description' ],
+            [ GPFORUM_DEFAULT_LOCALE           => 'default_locale' ],
+            [ GPFORUM_DEFAULT_THEME            => 'default_theme' ],
+            [ GPFORUM_INTEGRATION_PLUGINS      => 'integration_plugins' ],
+            [ GPFORUM_DEFAULT_TIMEZONE         => 'default_timezone' ],
+            [ GPFORUM_LOG_LEVEL                => 'log_level' ],
+            [ GPFORUM_LOG_PATH                 => 'log_path' ],
+            [ GPFORUM_ATTACHMENT_ROOT          => 'attachment_root' ],
+            [ GPFORUM_ATTACHMENT_STORAGE       => 'attachment_storage' ],
+            [ GPFORUM_MEDIA_MAX_MIB            => 'media_max_mib' ],
+            [ GPFORUM_ATTACHMENT_OWNER_MAX_MIB => 'attachment_owner_max_mib' ],
+            [
+                GPFORUM_ATTACHMENT_OWNER_MAX_PENDING =>
+                  'attachment_owner_max_pending'
+            ],
+            [ GPFORUM_MEDIA_SOURCE_HOSTS  => 'media_source_hosts' ],
+            [ GPFORUM_MASTODON_HOSTS      => 'mastodon_hosts' ],
+            [ GPFORUM_PEERTUBE_HOSTS      => 'peertube_hosts' ],
+            [ GPFORUM_DISCORD_WEBHOOK     => 'discord_webhook' ],
+            [ GPFORUM_SYNDICATION_SOURCES => 'syndication_sources' ],
+            [ GPFORUM_OIDC_ISSUER         => 'oidc_issuer' ],
+            [
+                GPFORUM_OIDC_AUTHORIZATION_ENDPOINT =>
+                  'oidc_authorization_endpoint'
+            ],
+            [ GPFORUM_OIDC_TOKEN_ENDPOINT    => 'oidc_token_endpoint' ],
+            [ GPFORUM_OIDC_JWKS_URI          => 'oidc_jwks_uri' ],
+            [ GPFORUM_OIDC_CLIENT_ID         => 'oidc_client_id' ],
+            [ GPFORUM_OIDC_CLIENT_SECRET     => 'oidc_client_secret' ],
+            [ GPFORUM_OIDC_SIGNING_ALGORITHM => 'oidc_signing_algorithm' ],
+            [
+                GPFORUM_ATTACHMENT_ACCEL_REDIRECT => 'attachment_accel_redirect'
+            ],
+            [ GPFORUM_IMAGE_TOOL => 'image_tool' ],
+        ],
+    },
+    {
+        name     => 'security',
+        settings => [
+            [ GPFORUM_POST_SIGNING_KEY => 'post_signing_key' ],
+            [ GPFORUM_SESSION_SECRET   => 'session_secret' ],
+            [ GPFORUM_SESSION_SECRETS  => 'previous_session_secrets' ],
+            [
+                GPFORUM_SESSION_TOUCH_INTERVAL_SECONDS =>
+                  'session_touch_interval_seconds'
+            ],
+            [ GPFORUM_METRICS_TOKEN         => 'metrics_token' ],
+            [ GPFORUM_METRICS_TOKENS        => 'previous_metrics_tokens' ],
+            [ GPFORUM_PASSWORD_MEMORY_MIB   => 'password_memory_mib' ],
+            [ GPFORUM_PASSWORD_ITERATIONS   => 'password_iterations' ],
+            [ GPFORUM_SECOND_FACTOR_KEY     => 'second_factor_key' ],
+            [ GPFORUM_SECOND_FACTOR_KEYS    => 'previous_second_factor_keys' ],
+            [ GPFORUM_FORUM_READ_RATE_LIMIT => 'forum_read_rate_limit' ],
+        ],
+    },
+    {
+        name     => 'legal',
+        settings => [
+            [ GPFORUM_OPERATOR_NAME         => 'operator_name' ],
+            [ GPFORUM_OPERATOR_ADDRESS      => 'operator_address' ],
+            [ GPFORUM_OPERATOR_EMAIL        => 'operator_email' ],
+            [ GPFORUM_OPERATOR_VAT_NUMBER   => 'operator_vat_number' ],
+            [ GPFORUM_OPERATOR_REGISTER     => 'operator_register' ],
+            [ GPFORUM_PRIVACY_OFFICER_EMAIL => 'privacy_officer_email' ],
+            [ GPFORUM_SECURITY_CONTACT      => 'security_contact' ],
+        ],
+    },
+    {
+        name     => 'database',
+        settings => [
+            [ GPFORUM_DATABASE_DSN            => 'database_dsn' ],
+            [ GPFORUM_DATABASE_USER           => 'database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_DSN      => 'admin_database_dsn' ],
+            [ GPFORUM_ADMIN_DATABASE_USER     => 'admin_database_user' ],
+            [ GPFORUM_ADMIN_DATABASE_PASSWORD => 'admin_database_password' ],
+            [ GPFORUM_DATABASE_PASSWORD       => 'database_password' ],
+            [
+                GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS =>
+                  'database_statement_timeout_ms'
+            ],
+            [
+                GPFORUM_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS =>
+                  'database_idle_in_transaction_timeout_ms'
+            ],
+            [ GPFORUM_POSTGRES_PROFILE         => 'postgres_profile' ],
+            [ GPFORUM_POSTGRES_STRICT          => 'postgres_strict' ],
+            [ GPFORUM_POSTGRES_TOPOLOGY        => 'postgres_topology' ],
+            [ GPFORUM_POSTGRES_MEMORY_MB       => 'postgres_memory_mb' ],
+            [ GPFORUM_POSTGRES_RESERVE_MB      => 'postgres_reserve_mb' ],
+            [ GPFORUM_POSTGRES_CPU_COUNT       => 'postgres_cpu_count' ],
+            [ GPFORUM_POSTGRES_STORAGE         => 'postgres_storage' ],
+            [ GPFORUM_DATABASE_LOCK_TIMEOUT_MS => 'database_lock_timeout_ms' ],
+        ],
+    },
+    {
+        name     => 'search',
+        settings => [
+            [
+                GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS =>
+                  'search_statement_timeout_ms'
+            ],
+            [ GPFORUM_SEARCH_CANDIDATE_LIMIT => 'search_candidate_limit' ],
+            [
+                GPFORUM_SEARCH_EMBEDDING_MODEL_PATH =>
+                  'search_embedding_model_path'
+            ],
+            [
+                GPFORUM_SEARCH_EMBEDDING_MODEL_KEY =>
+                  'search_embedding_model_key'
+            ],
+            [ GPFORUM_SEARCH_EMBEDDING_PYTHON => 'search_embedding_python' ],
+            [
+                GPFORUM_SEARCH_EMBEDDING_TIMEOUT_SECONDS =>
+                  'search_embedding_timeout_seconds'
+            ],
+        ],
+    },
+    {
+        name     => 'mail',
+        settings => [
+            [ GPFORUM_MAIL_TRANSPORT     => 'mail_transport' ],
+            [ GPFORUM_MAIL_REPLY_ADDRESS => 'mail_reply_address' ],
+            [ GPFORUM_MAIL_FROM          => 'mail_from' ],
+            [ GPFORUM_DKIM_KEY_FILE      => 'dkim_key_file' ],
+            [ GPFORUM_DKIM_DOMAIN        => 'dkim_domain' ],
+            [ GPFORUM_DKIM_SELECTOR      => 'dkim_selector' ],
+            [ GPFORUM_SMTP_HOST          => 'smtp_host' ],
+            [ GPFORUM_SMTP_PORT          => 'smtp_port' ],
+            [ GPFORUM_SMTP_TLS           => 'smtp_tls' ],
+            [ GPFORUM_SMTP_USERNAME      => 'smtp_username' ],
+            [ GPFORUM_SMTP_PASSWORD      => 'smtp_password' ],
+        ],
+    },
+    {
+        name     => 'antivirus',
+        settings => [
+            [ GPFORUM_ANTIVIRUS         => 'antivirus' ],
+            [ GPFORUM_ANTIVIRUS_SOCKET  => 'antivirus_socket' ],
+            [ GPFORUM_ANTIVIRUS_COMMAND => 'antivirus_command' ],
+            [
+                GPFORUM_ANTIVIRUS_TIMEOUT_SECONDS =>
+                  'antivirus_timeout_seconds'
+            ],
+        ],
+    },
+    {
+        name     => 'processes',
+        settings => [
+            [ GPFORUM_WARMUP_ENABLED             => 'warmup_enabled' ],
+            [ GPFORUM_WEB_PROCESSES              => 'web_processes' ],
+            [ GPFORUM_RUNTIME_LISTEN             => 'runtime_listen' ],
+            [ GPFORUM_RUNTIME_WORKER_POLICY      => 'runtime_worker_policy' ],
+            [ GPFORUM_RUNTIME_MAX_WEB_PER_CPU    => 'runtime_max_web_per_cpu' ],
+            [ GPFORUM_RUNTIME_BACKLOG            => 'runtime_backlog' ],
+            [ GPFORUM_RUNTIME_CLIENTS            => 'runtime_clients' ],
+            [ GPFORUM_RUNTIME_REQUESTS           => 'runtime_requests' ],
+            [ GPFORUM_RUNTIME_KEEP_ALIVE_TIMEOUT => 'runtime_keep_alive' ],
+            [ GPFORUM_RUNTIME_INACTIVITY_TIMEOUT => 'runtime_inactivity' ],
+            [ GPFORUM_RUNTIME_GRACEFUL_TIMEOUT => 'runtime_graceful_timeout' ],
+            [
+                GPFORUM_RUNTIME_HEARTBEAT_INTERVAL =>
+                  'runtime_heartbeat_interval'
+            ],
+            [
+                GPFORUM_RUNTIME_HEARTBEAT_TIMEOUT => 'runtime_heartbeat_timeout'
+            ],
+            [ GPFORUM_RUNTIME_UPGRADE_TIMEOUT => 'runtime_upgrade_timeout' ],
+            [ GPFORUM_RUNTIME_SPARE_PROCESSES => 'runtime_spare_processes' ],
+            [ GPFORUM_RUNTIME_PROXY           => 'runtime_proxy' ],
+            [ GPFORUM_RUNTIME_TRUSTED_PROXIES => 'runtime_trusted_proxies' ],
+            [ GPFORUM_RUNTIME_PID_FILE        => 'runtime_pid_file' ],
+        ],
+    },
+    {
+        name     => 'operating_system',
+        settings => [
+            [ GPFORUM_OS_REUSEPORT => 'os_reuseport' ],
+            [
+                GPFORUM_OS_MIN_RECOMMENDED_WORKERS =>
+                  'os_min_recommended_workers'
+            ],
+            [
+                GPFORUM_OS_MAX_OPEN_FILE_DESCRIPTORS =>
+                  'os_max_open_file_descriptors'
+            ],
+        ],
+    },
+    {
+        name     => 'cache',
+        settings => [
+            [ GPFORUM_LOCAL_CACHE_MAX_ENTRIES => 'local_cache_max_entries' ],
+            [
+                GPFORUM_CATEGORY_CACHE_TTL_SECONDS =>
+                  'category_cache_ttl_seconds'
+            ],
+            [ GPFORUM_GLIFISTORE_URL => 'glifistore_url' ],
+        ],
+    },
+    {
+        name     => 'realtime',
+        settings => [
+            [
+                GPFORUM_REALTIME_LISTENER_ENABLED =>
+                  'realtime_listener_enabled'
+            ],
+            [
+                GPFORUM_REALTIME_LISTENER_POLL_INTERVAL_SECONDS =>
+                  'realtime_listener_poll_interval_seconds'
+            ],
+            [
+                GPFORUM_REALTIME_LISTENER_RECONNECT_BACKOFF_SECONDS =>
+                  'realtime_listener_reconnect_backoff_seconds'
+            ],
+            [
+                GPFORUM_REALTIME_LISTENER_HEARTBEAT_INTERVAL_SECONDS =>
+                  'realtime_listener_heartbeat_interval_seconds'
+            ],
+        ],
+    },
+    {
+        name     => 'jobs',
+        settings => [
+            [ GPFORUM_MINION_ENABLED       => 'minion_enabled' ],
+            [ GPFORUM_MINION_PG_URL        => 'minion_pg_url' ],
+            [ GPFORUM_EVENT_RETENTION_DAYS => 'event_retention_days' ],
+        ],
+    },
+);
+
+# Shown only as set or not: whatever signs a session, authenticates a scrape
+# or logs in somewhere. A name that reads like a secret counts as one even if
+# this list forgets it, so a new GPFORUM_*_TOKEN is hidden from its first day.
+const my %SECRET => map { $_ => 1 } qw(
+  GPFORUM_DATABASE_PASSWORD
+  GPFORUM_METRICS_TOKEN
+  GPFORUM_METRICS_TOKENS
+  GPFORUM_SECOND_FACTOR_KEY
+  GPFORUM_SECOND_FACTOR_KEYS
+  GPFORUM_SESSION_SECRET
+  GPFORUM_SESSION_SECRETS
+  GPFORUM_SMTP_PASSWORD
+  GPFORUM_DISCORD_WEBHOOK
+  GPFORUM_SMTP_USERNAME
+);
+const my $SECRET_WORD => qr/SECRET|PASSW(?:OR)?D|TOKEN|CREDENTIAL/msx;
+const my $SECRET_ROLE => qr/PRIVATE|USERNAME|_KEY\z/msx;
+
+has config      => undef;                   # optional: redact reads none
+has environment => sub { return \%ENV; };
+
+# The effective configuration, section by section: each setting's variable,
+# its value (or, for a secret, only whether it is set) and whether the value
+# came from the environment or is the built-in default.
+sub view ($self) {
+    my $secrets = $self->secret_values;
+    my %change  = %CHANGE;
+    if ( $self->config && $self->config->push_enabled ) {
+        $change{restart}         .= ' gpforum-push';
+        $change{freebsd_restart} .= ' && service gpforum_push restart';
+    }
+
+    return {
+        change   => \%change,
+        sections => [ map { $self->_section( $_, $secrets ) } @SECTIONS ],
+    };
+}
+
+# The page reads only the configuration: answered in the worker rather than
+# in a forked child.
+async sub view_p ( $self, $context = undef ) {
+    return $self->view;
+}
+
+# Every variable the page lists, in its order.
+sub env_names ($class) {
+    return [ map { $_->[0] } map { @{ $_->{settings} } } @SECTIONS ];
+}
+
+sub is_secret ( $class, $env_name ) {
+    return ( exists $SECRET{$env_name}
+          || $env_name =~ $SECRET_WORD
+          || $env_name =~ $SECRET_ROLE ) ? 1 : 0;
+}
+
+# The configured value of every secret setting, longest first, so text that
+# quotes one -- a mail transport's error, say -- can be scrubbed of it.
+sub secret_values ($self) {
+    my %values;
+    for my $setting ( map { @{ $_->{settings} } } @SECTIONS ) {
+        my ( $env_name, $attribute ) = @{$setting};
+        next if !$self->is_secret($env_name);
+
+        my $value = $self->config->$attribute;
+        for my $secret ( ref $value eq 'ARRAY' ? @{$value} : $value ) {
+            if ( defined $secret && length $secret ) {
+                $values{$secret} = 1;
+            }
+        }
+    }
+
+    my @shortest_first =
+      sort { length $a <=> length $b || $a cmp $b } keys %values;
+
+    return [ reverse @shortest_first ];
+}
+
+# Text with every configured secret, and every inline password, replaced.
+# The secrets go in one pass, longest first, so a short secret cannot match
+# inside the marker that replaced a longer one.
+sub redact ( $self, $text, $secrets = undef ) {
+    return $text if !defined $text;
+
+    $secrets //= $self->secret_values;
+    if ( @{$secrets} ) {
+        my $any = join q{|}, map { quotemeta } @{$secrets};
+        $text =~ s/(?:$any)/$REDACTED/gmsx;
+    }
+
+    # A setting that is not a secret can still carry one, a DSN's password=
+    # or a URL's user:password@: GPForum::Config::Report replaces them, as it
+    # does in the report of a setting it refuses.
+    return GPForum::Config::Report->without_passwords($text);
+}
+
+sub _section ( $self, $section, $secrets ) {
+    return {
+        name     => $section->{name},
+        settings => [
+            map { $self->_setting( @{$_}, $secrets ) } @{ $section->{settings} }
+        ],
+    };
+}
+
+sub _setting ( $self, $env_name, $attribute, $secrets ) {
+    my $value   = $self->config->$attribute;
+    my %setting = (
+        env    => $env_name,
+        name   => $attribute,
+        source => $self->_source($env_name),
+    );
+
+    # The value never leaves this method for a secret: not redacted, not
+    # hashed, not its length. Whether it is set is what an operator needs.
+    if ( $self->is_secret($env_name) ) {
+        my @values =
+          grep { defined && length } ref $value eq 'ARRAY'
+          ? @{$value}
+          : ($value);
+        return {
+            %setting,
+            configured => scalar @values,
+            list       => ref $value eq 'ARRAY' ? 1 : 0,
+            secret     => 1,
+        };
+    }
+
+    return {
+        %setting,
+        secret => 0,
+        value  => $self->redact( _text($value), $secrets ),
+    };
+}
+
+# Config takes a variable when it is present and not empty, as here.
+sub _source ( $self, $env_name ) {
+    my $raw = $self->environment->{$env_name};
+
+    return defined $raw && length $raw ? 'environment' : 'default';
+}
+
+sub _text ($value) {
+    return q{} if !defined $value;
+    return join q{ }, @{$value} if ref $value eq 'ARRAY';
+
+    return "$value";
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Admin::Settings - The effective configuration, with secrets redacted, for the console.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $settings = GPForum::Service::Admin::Settings->new( config => $config );
+    my $view     = $settings->view;
+    my $safe     = $settings->redact($transport_error);
+
+=head1 DESCRIPTION
+
+What C</admin/settings> shows (quality program 6.5): every variable
+L<GPForum::Config> reads, its effective value, and whether that value came
+from the environment or is the built-in default. Secrets -- the session
+secrets, the database password, the metrics tokens and the SMTP credentials,
+and any variable whose name reads like a secret -- are shown only as set or
+not set. A value that is not a secret but embeds one, such as a DSN's
+C<password=> or a URL's C<user:password@>, has that part replaced, and so has
+any configured secret that appears inside another value.
+
+Configuration lives in the service's environment
+(F</etc/gpforum/gpforum.env>); this module reads it and writes nothing.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 view
+
+The sections, each with its settings (C<env>, C<name>, C<source>, C<secret>,
+and C<value> or, for a secret, C<configured> and C<list>), and where to
+change them: C<change> holds the environment file (C<file>, and
+C<freebsd_file>) and the command that restarts both services that read it,
+the web service and the outbox worker (C<restart>, and C<freebsd_restart>).
+
+=head2 view_p
+
+L</view> as a promise, with an optional query context; it reads no
+database.
+
+=head2 env_names
+
+Every variable listed, in page order.
+
+=head2 is_secret
+
+True for a variable shown only as set or not set.
+
+=head2 secret_values
+
+The configured secret values, longest first.
+
+=head2 redact
+
+The text with every configured secret and every inline password replaced by
+C<[redacted]>.
+
+=head1 DIAGNOSTICS
+
+None; it reads an already validated configuration.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Reads the process environment only to tell an environment value from a
+default.
+
+=head1 DEPENDENCIES
+
+L<Const::Fast>, L<Mojo::Base>, L<GPForum::Config>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+It shows what this web process loaded at start. A change to the environment
+file takes effect, and shows here, after a restart.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

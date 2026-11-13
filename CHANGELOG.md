@@ -1,0 +1,5559 @@
+# Changelog
+
+All notable changes to Good Phorum are recorded here, in the form of
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Good Phorum is an
+application, not a CPAN distribution (ADR 0109): its versions are the
+`vMAJOR.MINOR.PATCH` git tags, and each release gets a section named after
+its tag and date. Changes not yet in a tag are under **Unreleased**.
+
+Within a section, entries are newest first. Read **Operator action required**
+before upgrading past a section: it lists what the operator has to do.
+**Development** records changes that only affect maintainers -- tests, gates,
+CI, evidence and internal refactors with no change in behaviour.
+
+## Unreleased
+
+Native FreeBSD CI builds and tests as an ordinary user, with PostgreSQL server
+and extension prerequisites for the self-contained HTTP smoke test. Fresh-checkout
+checks consume a finite amount of entropy and complete when SIGPIPE is inherited
+as ignored, including on macOS. A bounded process regression covers that case.
+
+Supervised web starts now retain their original PID in a native prefork
+manager. TERM, INT and QUIT drain requests on every supported Unix platform;
+an exclusive lock protects the listener and PID ownership. FreeBSD now
+restarts a crashed web manager and stops through its supervisor. HUP reopens
+application logs in the manager and workers, preserving the old handle on
+failure. Service mode always stays foreground, including without the optional
+`--foreground`; it refuses the development-only `--listen`. Reprint changed
+service files and restart all long-running services after installing this release.
+Native supervisor CI drills exercise crash restart, in-flight stop and the
+systemd watchdog. See [the lifecycle contract](docs/ops/unix-daemons.md).
+
+The outbox worker now stops before claiming another batch when TERM or INT
+interrupts its idle wait. Service templates set umask 0027; systemd and launchd
+give notification workers 150 seconds to drain before forced termination.
+Every launchd job captures startup errors and command output. Deployment CI
+parses all shipped systemd units and FreeBSD rc scripts.
+
+Enabled Push installations now generate their sender service for systemd,
+FreeBSD rc.d and launchd. Start/restart advice and doctor include that worker.
+GUI wiring checks also fetch every named asset and verify that every optional
+browser client is supplied by the layout and activated by its controls.
+
+Passkeys now connect account settings and the login form to persistent WebAuthn
+credentials, normal sessions and the existing TOTP/recovery policy. Members can
+register and revoke keys; password rotation revokes all keys, exports include
+metadata and erasure removes it. Apply migration 2043, refresh runtime API grants,
+install the updated locked dependencies and restart. Use the configured HTTPS
+origin or localhost for development. See [passkeys](docs/passkeys-registration.md).
+
+Account recovery now serializes credential and token changes and rejects reset
+links sent to a replaced address. Attachment writes recheck author and thread
+locks and enforce per-owner storage and pending-review allowances. Public cache
+entries follow a committed revocation epoch, queued digests recheck readable
+sources at delivery, and WebSocket output is bounded at the actual socket.
+Staging drills report cleanup failures and drain command output without blocking.
+Apply migrations 2026–2032 and refresh runtime API-role grants before starting
+the updated application and workers.
+
+Vimeo, GitLab and Codeberg links are now available through the local plugin
+contract, with explicitly allowlisted Mastodon/PeerTube instances. The admin
+console adds selected public-topic Discord announcements and moderated,
+deduplicated RSS/Atom imports through outbox workers. Optional pinned OIDC
+supports explicit existing-account links and preserves local MFA/recovery;
+email claims never merge accounts. Telegram is excluded. Apply migrations
+2031/2032, refresh API-role grants, install locked dependencies and restart
+before configuring these disabled network features. See the
+[network integration guide](docs/integration-network-v1.md).
+
+The database now starts from the fresh 2000–2025 baseline (ADR 0162).
+Earlier migration histories are refused; the operator procedure below names
+the current baseline, with retired instructions kept separately as history.
+
+Uploaded files now default to PostgreSQL, including profile-picture originals
+and their cropped versions. Audio and MP4 video accept up to 250 MiB; posts
+show images and media players, and discussions can host prerecorded podcast
+episodes. New uploads require a rights declaration, an original or explicitly
+authorized source, and independent moderator approval after scanning. Rejected
+hashes block exact reuploads. Configure source hosts and scanner limits, and
+import legacy file bytes only after their metadata is present in the current
+database schema. See [media and podcasts](docs/ops/media-and-podcasts.md).
+
+Eight independent integration modules (YouTube, GitHub, Facebook, Instagram,
+Spotify, Apple Music, Wikipedia and Mathematics) now use the fixed, validated Plugin API v1. Admins
+manage activation, display mode and link previews at `/admin/plugins`, and
+general forum settings at `/admin/configuration`. Settings persist with
+revision checks and audit records; SMTP credentials remain sealed. See
+[the management guide](docs/integrations.md) and
+[the plugin contract](docs/plugin-api-v1.md). Wikipedia cards preserve language,
+section and permanent revision citations, without fetching article content.
+The separate LaTeX / KaTeX module renders inline and display equations as
+accessible MathML using a pinned local renderer, with composer buttons and
+an administrator equation tester.
+Configuration is included in the current fresh database baseline; subsequent
+plugin choices apply without a restart.
+
+Nothing has been tagged yet. In short: the statements Perl runs are
+versioned PostgreSQL functions (ADR 0126); the service listens on a Unix
+socket and reaches a local PostgreSQL over one (ADR 0137); `bin/gpforum` is
+the one front door. Members gained likes and reactions, replies to a post,
+tags, bookmark folders, digests, ignore and block, direct messages, a second
+factor and profile pictures; staff gained announcements, automod, a
+first-post review queue and address bans. **Operator action required** is for
+a host set up from an earlier `main`, newest first.
+
+### Operator action required
+
+- **Apply migrations 2050 and 2051, refresh runtime API grants, then restart
+  the web service and the workers.** 2050 adds the owner of a handler claim
+  (`ops_event_claim_v4`); 2051 adds the suspension target check
+  (`moderation_suspension_target_v2`). The previous claim boundary stays for
+  workers from the preceding release.
+
+- **Synchronize the query-budget catalogue after deploying this change.**
+  On a database already using 2000–2025, run `gpforum budgets --sync` and
+  `gpforum budgets --check`; the ordinary `gpforum migrate` step also syncs
+  them. Home, category index, category threads, notifications and search
+  now include their measured request costs, including live configuration.
+  This updates operational limits without a schema migration.
+
+- **Start this checkout with an empty database (ADR 0162).** The current
+  baseline is migrations 2000–2025. Earlier chains are refused before SQL
+  runs; no data import is provided. Keep the existing database and its
+  backup, create a different empty database, migrate it and provision the
+  current runtime catalogue before starting the matching services. Follow
+  the [upgrade guide](docs/ops/upgrade.md). The retired migration instructions
+  below document previous checkouts and must not be run with this one.
+
+- **Say who runs the forum before it opens to the public.** The legal
+  pages now name the operator from `GPFORUM_OPERATOR_NAME`,
+  `GPFORUM_OPERATOR_ADDRESS` and `GPFORUM_OPERATOR_EMAIL`, with
+  `GPFORUM_OPERATOR_VAT_NUMBER`, `GPFORUM_OPERATOR_REGISTER` and
+  `GPFORUM_PRIVACY_OFFICER_EMAIL` when they apply, and
+  `/.well-known/security.txt` gives `GPFORUM_SECURITY_CONTACT` (or the
+  operator email). Until a name is set, every legal page says the
+  information is missing; without a contact, security.txt answers 404.
+  Read the pages: they describe what the software does, and the policy and
+  whether a provision applies remain the operator's.
+
+- **Name the forum.** Pages, mail and notifications now say the name in
+  `GPFORUM_SITE_NAME` instead of "GPForum"; until it is set they say
+  "Forum". `GPFORUM_SITE_DESCRIPTION` is the optional line under the name on
+  the home page. Add both to `/etc/gpforum/gpforum.env` and restart the
+  services.
+
+- **Move the service and its database onto Unix sockets, and install EV
+  (ADR 0137).** In this order, on a host set up before them:
+  1. *Dependencies.* Install them again the way `sudo -u gpforum gpforum
+     upgrade` prints it: Carton now pins EV, and the service refuses to
+     start on anything but the native epoll or kqueue backend.
+  2. *The listener.* Hypnotoad listens on `var/run/gpforum.sock` under the
+     code directory, and `gpforum start --service` refuses a TCP address:
+     remove `GPFORUM_RUNTIME_LISTEN=http://127.0.0.1:8080` from the
+     environment file (or set an `http+unix://` one), print the proxy's
+     site again with `gpforum service print nginx` or `caddy`, and add the
+     proxy's account to the `gpforum` group with the command that prints
+     beside the site (`sudo usermod -aG gpforum www-data` on Debian's
+     nginx), then restart the proxy.
+  3. *The database.* For PostgreSQL on this host, set `host=` in
+     `GPFORUM_DATABASE_DSN` to its Unix socket directory, for example
+     `dbi:Pg:dbname=gpforum;host=/var/run/postgresql` on Debian/Ubuntu or
+     `host=/tmp` on Homebrew/FreeBSD. A DSN without `host=` uses libpq's
+     default socket directory; `gpforum doctor` reports an old loopback
+     TCP setting. With the
+     runtime role, add the `pg_hba.conf` and `pg_ident.conf` lines `sudo
+     gpforum setup` prints, and reload PostgreSQL.
+
+- **Install `gpforum.service` and `gpforum.conf` in place of the
+  `gpforum-unix-socket` ones.** `deploy/systemd/gpforum-unix-socket.service`
+  and `deploy/nginx/gpforum-unix-socket.conf` were links to the single
+  templates, kept for the old names; nothing was released with them, so
+  they are gone (ADR 0137). A host that installed one disables it, and
+  writes the current files with `gpforum service print systemd --to DIR`
+  and `gpforum service print nginx`.
+
+- **Take the group's write permission off the stored uploads.** The service
+  used to run under umask 007, so the uploads it wrote are `0660` and their
+  directories `0770`, writable by the proxy's account in the `gpforum`
+  group. New ones are `0640` and `0750`; for those already stored run, as
+  root, `chmod -R g-w,o-rwx /opt/gpforum/var/attachments` (or the
+  `GPFORUM_ATTACHMENT_ROOT` you set).
+
+- **Write the new names of the old settings, drill variables and commands by
+  hand.** Nothing was released with the old ones, so they are no longer
+  read or installed, and neither the start, `gpforum setup` nor `gpforum
+  doctor` mentions them (ADRs 0120 and 0125, amended). An old `GPFORUM_ENV`
+  value now stops the start. In the
+  environment file: `GPFORUM_ENV=production-small` or `production-medium`
+  becomes `GPFORUM_ENV=production` (add `GPFORUM_EVENT_RETENTION_DAYS=730` to
+  keep production-medium's retention); `GPFORUM_SMTP_SSL=on` becomes
+  `GPFORUM_SMTP_TLS=starttls` and `GPFORUM_SMTP_SSL=off` becomes
+  `GPFORUM_SMTP_TLS=off`; remove `GPFORUM_WORKER_PROCESSES`,
+  `GPFORUM_REALTIME_PROCESSES` and `GPFORUM_OS_AFFINITY`, which had no
+  effect. For the drills: `GPFORUM_PITR_PORT` and `GPFORUM_PITR_DIR` become
+  `script/pitr-drill --port N --dir PATH`; `GPFORUM_STANDBY_PRIMARY_PORT`,
+  `GPFORUM_STANDBY_PORT` and `GPFORUM_STANDBY_DIR` become `script/standby-drill
+  --primary-port N --standby-port N --dir PATH`; `GPFORUM_EVIDENCE_DIR` and
+  `GPFORUM_EVIDENCE_ENV_FILE` become `script/gpforum-evidence-live --out DIR
+  --env-file PATH`. `bin/` holds `bin/gpforum` alone: a unit, crontab or
+  script that still runs a `bin/gpforum-NAME` (or `script/gpforum-carton exec`
+  it) runs `bin/gpforum VERB` instead, and `gpforum service print` writes the
+  units again. `gpforum-migrate --apply` becomes `gpforum migrate`;
+  `gpforum-admin-bootstrap --user-id ID` becomes `gpforum admin grant
+  --user-id ID`; `gpforum-outbox-dispatch` becomes `gpforum outbox`;
+  `gpforum-partition-maintenance` becomes `gpforum partitions`;
+  `gpforum-query-budget` becomes `gpforum budgets`; `gpforum-dead-letter-replay`
+  becomes `gpforum dead-letters`; `gpforum-seed-performance-data` becomes
+  `gpforum performance-seed`; `gpforum-bench-hypnotoad` and
+  `gpforum-bench-hypnotoad-scaling` become `gpforum hypnotoad-benchmark` and
+  `gpforum hypnotoad-scaling`; every other `bin/gpforum-NAME` becomes `gpforum
+  NAME`. The old spellings through the front door (`gpforum
+  partition-maintenance`, `gpforum outbox_dispatch`, `gpforum
+  admin-bootstrap`) are no verbs any more.
+
+- **The size `production-small` and `production-medium` named comes from
+  the host** (their renaming is above): the web processes from its CPUs, as
+  before, and each web process's cache from its memory
+  (`GPFORUM_LOCAL_CACHE_MAX_ENTRIES=auto`, the new default, which may give
+  more or fewer than the old 4096 entries; set `4096` to keep that). The
+  event log is kept `GPFORUM_EVENT_RETENTION_DAYS` days, 365 in every
+  environment: a `production-medium` host that kept 730 sets
+  `GPFORUM_EVENT_RETENTION_DAYS=730`.
+
+- Run `make install-deps-production` after pulling: the lock now installs
+  IO::Socket::SSL (with Net::SSLeay, built against the host's OpenSSL), which
+  mail over TLS needs. On FreeBSD and macOS the service now takes its mode from
+  the environment file's `GPFORUM_ENV` (the template says `production`): check
+  it, then re-print and reinstall the units with `gpforum service print rc` or
+  `gpforum service print launchd` and restart them. On macOS, load the
+  scheduled-jobs and partition plists too -- they were copied but never
+  loaded -- after creating `$(brew --prefix)/var/log/gpforum` owned by
+  `gpforum`. On FreeBSD, the jobs can move to `/usr/local/etc/cron.d/` (remove
+  the old crontab lines). Add a nightly `gpforum backup` to `gpforum`'s
+  crontab (`docs/ops/backup-and-restore.md`).
+
+- On macOS, create the `gpforum` account and re-copy the plists: they now
+  run as `gpforum` and read the environment file. An smtp setup that does
+  not set `GPFORUM_SMTP_TLS` uses TLS (STARTTLS on 587, implicit on 465) and
+  needs IO::Socket::SSL; set `GPFORUM_SMTP_TLS=off` for a relay that takes
+  mail in the clear.
+
+- **`gpforum migrate` speaks, and settings errors exit 78.**
+  It prints one line -- `Applied 51 migrations, 001 to 051; synced the
+  query budgets (25 changed).`, or `Schema is current (051).` when nothing
+  was pending -- where it printed a line per migration, and nothing at all
+  the second time: a deploy script that checked for silence passes
+  `--quiet`. It also syncs the endpoint query budgets after the partitions,
+  so the migrating role writes `endpoint_query_budgets`. `--plan` connects
+  to the database to say what is pending. `gpforum admin grant` says what
+  it did in a sentence; `--json` carries the counts its `key=value` line
+  had. Every command that reports settings it cannot use exits 78
+  (EX_CONFIG), where it exited 1.
+
+- **Production refuses settings that were silently wrong.** Check
+  `/etc/gpforum/gpforum.env` before upgrading: production needs an `https://`
+  `GPFORUM_PUBLIC_BASE_URL`, a `GPFORUM_MAIL_FROM` that is not at localhost
+  and a `GPFORUM_SESSION_SECRET` of at least 32 characters (`openssl rand
+  -hex 32`). Every environment refuses a `GPFORUM_ENV` that is not
+  development, test, staging or production (`prod` is answered with
+  `production`), a
+  `GPFORUM_LOG_LEVEL` Mojolicious does not know, a `GPFORUM_DEFAULT_LOCALE`
+  without a catalog (`en`, `it`; a region, as in `it_IT` or `en-GB`, is read
+  as its language, and a POSIX locale such as `it_IT.UTF-8` is answered with
+  `it`), a `GPFORUM_RUNTIME_LISTEN` that is not a URL
+  such as `http+unix://var%2Frun%2Fgpforum.sock`, and the smtp transport without
+  `GPFORUM_SMTP_HOST`. Staging and production refuse
+  `GPFORUM_MAIL_TRANSPORT=log`. A start that meets any of them lists every
+  one, with an example, and stops.
+
+- **Run the outbox worker everywhere.** Without it no verification, reset or
+  notification mail leaves. FreeBSD now has an rc script for it
+  (`deploy/freebsd/gpforum_outbox`: copy it to `/usr/local/etc/rc.d/` and
+  `sysrc gpforum_outbox_enable=YES`) and macOS a plist
+  (`deploy/launchd/com.gpforum.outbox.plist`). On Linux, check that
+  `systemctl is-enabled gpforum-outbox` says `enabled`: the deployment guide
+  never told you to enable it.
+
+- **Copy the nginx and Caddy configurations again.** nginx now accepts
+  bodies up to 26 MiB, and its `/internal-attachments/` alias is the default
+  attachment store, `/opt/gpforum/var/attachments/`; if you kept
+  `/srv/gpforum/attachments/`, keep your `GPFORUM_ATTACHMENT_ROOT` and alias
+  as they are. The Caddyfile now answers `/metrics` and `/metrics/` only to
+  the loopback, and nginx keeps `/metrics/` there too.
+
+- **Re-copy the service files, then `systemctl daemon-reload` and restart.**
+  The units and launchd plists set only `GPFORUM_ENV` and the log path: the
+  23 lines that restated `GPForum::Config`'s defaults, and `MOJO_MODE`, which
+  `GPFORUM_ENV` always overrode, are gone, so a default changed in a release
+  now reaches the service. An override you made by editing a unit belongs in
+  `/etc/gpforum/gpforum.env`. Hypnotoad's pid file moves from
+  `/opt/gpforum/hypnotoad.pid` to `/run/gpforum/hypnotoad.pid`, the directory
+  `RuntimeDirectory=` makes; an absolute `GPFORUM_RUNTIME_PID_FILE` is kept
+  as it is. Until you re-copy them, a unit from before this release still
+  starts: under it the pid file stays in `/opt/gpforum`, and the start logs
+  a line saying to copy the units again.
+
+- **Perl 5.40 or newer is required.** The supported floor moves from 5.38 to
+  5.40 (ADR 0117): Debian 13 (trixie), Ubuntu 26.04, FreeBSD ports perl 5.40,
+  or Homebrew's perl. `script/gpforum-system-perl --require` and
+  `script/bootstrap-deps` refuse an older interpreter. A host on Ubuntu 24.04
+  (perl 5.38) must be upgraded before deploying this release; after changing
+  the interpreter, rebuild the locked tree (`script/bootstrap-deps --postgres
+  --rebuild-local`), because its XS modules are built for one Perl.
+
+- Alerting or scripts that read the readiness checks (`report.problems`,
+  `partition_horizon`, `replication_slots`) must send the metrics token; see
+  `docs/DEPLOYMENT.md#health-endpoints`.
+
+- Enable the new daily `gpforum-partition-maintenance` timer on every node
+  (systemd `gpforum-partition-maintenance.timer`, launchd
+  `com.gpforum.partition-maintenance.plist`, or the FreeBSD crontab line in
+  `docs/ops/partition-maintenance.md`). It must run as the role that owns the
+  partitioned tables.
+
+- **macOS hosts use Homebrew, not MacPorts.** Install `brew install perl
+  cpanminus postgresql@18`, install Carton for that perl, and rebuild the
+  locked tree (`script/bootstrap-deps --postgres --rebuild-local`): its XS
+  modules are built for one Perl. `script/gpforum-macports-env` is now
+  `script/gpforum-homebrew-env` (`make homebrew-env`). ClamAV on macOS comes
+  from `brew install clamav`, with the socket at
+  `/opt/homebrew/var/run/clamav/clamd.sock` (`docs/ops/antivirus.md`).
+
+- **A reverse proxy on another host must be listed in
+  `GPFORUM_RUNTIME_TRUSTED_PROXIES`** (for example `10.0.0.5` or
+  `10.0.0.0/8`). Only the loopback is trusted by default; the shipped nginx
+  and Caddy units run on the same host and need nothing.
+
+- **Members signed in before this release sign in again.** Migration 045
+  revokes every session whose bearer token was stored in the command log
+  by the login defect below, and removes the tokens.
+
+- **Grant `category.read` to administrators.** Private categories are now
+  readable only through a `category.read` grant. Re-run
+  `gpforum admin grant --user-id ADMIN_ID` (idempotent) so the owner
+  role gains it, or attach it to the roles that should read private
+  categories from the admin console; scope a binding to a space or a
+  category to grant just that.
+
+- **Set the forum's time zone.** `GPFORUM_DEFAULT_TIMEZONE` (an IANA name
+  such as `Europe/Rome`, default `UTC`) is what visitors and members who have
+  not chosen their own see. An invalid name stops the application at boot.
+  Times on the site now carry their zone abbreviation.
+
+- **FreeBSD: re-install the rc script and create its environment file.** The
+  old `deploy/freebsd/gpforum` could not start a production instance: it never
+  exported the configuration, and daemon(8) lost track of Hypnotoad. Copy the
+  new script to `/usr/local/etc/rc.d/gpforum` and put the service environment
+  (`GPFORUM_DATABASE_DSN`, `GPFORUM_SESSION_SECRET`, ...) in
+  `/usr/local/etc/gpforum/gpforum.env`, owned by `root:gpforum`, mode `0640`;
+  the script refuses a file others can read. See `docs/DEPLOYMENT.md`.
+
+- **API change for staff tools.** Revoking a role binding, suspending a user,
+  approving an erasure and running an erasure job now require `confirm=1` in
+  the request, and answer 400 without it. The forms carry a checkbox for it
+  and state what the action does; a script that posts to these routes must
+  add the field.
+
+- **Operator action required.** Uploads are now scanned by the operating
+  system's free antivirus (ClamAV) before they are served (ADR 0108). Staging
+  and production default to `GPFORUM_ANTIVIRUS=clamd`: install and start the
+  system package (`clamav-daemon` + `clamav-freshclam`, `pkg install clamav`,
+  or Homebrew's `clamav`), set `StreamMaxLength 26M`, and run
+  `gpforum antivirus-check`. Until clamd answers, new uploads stay pending and
+  unserved. Attachments uploaded before stay served until the hourly
+  `attachment_backfill` job has scanned them; on a large forum run it by hand
+  with a large `--limit`. To run without scanning, set
+  `GPFORUM_ANTIVIRUS=none`. Migration
+  043 adds `attachments.scan_engine` and `scan_signature`. A media type
+  mismatch after upload is now `failed`, not `infected`. The systemd units
+  start after `clamav-daemon.service` and the rc.d script requires
+  `clamav_clamd`: re-copy them. `gpforum scheduled-jobs` now exits 1
+  when a job fails, and prints each job's error, so a timer unit whose run
+  failed is marked failed. See `docs/ops/antivirus.md`.
+
+- **Re-copy the units: the host preflight is `gpforum os-preflight`.**
+  `ExecStartPre=` in `deploy/systemd/gpforum.service` and the preflight call
+  in `deploy/freebsd/gpforum` run it (see `docs/ENTRYPOINTS.md`).
+  **Existing installs must re-copy the unit files and run `systemctl
+  daemon-reload` (Linux), or reinstall the rc.d script (FreeBSD): a host
+  still running older units fails to start, because `ExecStartPre=` points
+  at a path that no longer exists.** Runbooks that called the rehearsals
+  directly run `gpforum dead-letter-check` and `gpforum
+  mail-lifecycle-check`.
+
+- Require the system's Perl (the distribution's package, or Homebrew's on
+  macOS) for bootstrap, Carton, make, CI, and docs. `script/gpforum-system-perl`
+  refuses version managers and custom PREFIX installs; document distro
+  packages and `perl -V` preflight.
+
+- GlifiStore is an optional shared L2 cache for public SSR and category
+  read-model seams: `GPFORUM_GLIFISTORE_URL` is empty by default in every
+  environment, and PostgreSQL stays authoritative. A host that set it only
+  because staging and production once required it may remove it.
+
+### Historical database upgrade instructions
+
+These entries describe the retired 0.x and 1000–1065 chains. They are retained
+as change history, not as an upgrade procedure for the current checkout.
+Migrations 2000–2025 install a fresh database only; use the current
+[upgrade guide](docs/ops/upgrade.md).
+
+- **Apply migration 1058, then restart the application workers.** `gpforum
+  migrate` installs the searches planned on a true count
+  (`api.search_ranked_v16`, `api.search_thread_ranked_v8`). Nothing is
+  dropped; the previous searches stay for the previous release's workers.
+  With a separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1057, then restart the application workers and run
+  `gpforum search-rebuild`.** `gpforum migrate` installs the `unaccent`
+  extension (it ships with PostgreSQL; the database owner may install it),
+  the `public.gpforum_italian` text-search configuration, the indexer that
+  takes it (`api.search_index_entity_v4`) and the searches that obey
+  operators in titles (`api.search_ranked_v14`,
+  `api.search_thread_ranked_v6`), and rewrites every search document in
+  Italian: 22 s on 200,000 documents. What a previous worker indexes before
+  its restart keeps `simple` vectors; the rebuild rewrites it. Nothing is
+  dropped. With a separate API runtime role, reprovision its grants as for
+  1024.
+
+- **Apply migration 1056, then restart the application workers.** `gpforum
+  migrate` installs the latest-thread list that carries each thread's
+  opening excerpt (`api.forum_list_public_threads_v6`). Nothing is dropped:
+  the previous list and `api.forum_thread_excerpts_v2`, which the previous
+  release's feed calls, stay until a later contract migration. With a
+  separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1055, then restart the application and outbox
+  workers.** `gpforum migrate` installs the suspension insert that queues a
+  timed suspension's end (`api.moderation_suspension_insert_v6`), the hourly
+  sweep that queues an end that is missing
+  (`api.moderation_queue_suspension_ends_v2`) and a search lag that skips a
+  message not yet due (`api.search_observe_lag_v4`), and queues the end of
+  every timed suspension in force; an end already past is delivered as soon
+  as the outbox worker runs. The suspension ends need the outbox worker
+  (`gpforum outbox --loop`) and the hourly `gpforum-scheduled-jobs.timer`,
+  which now runs `suspension_ends` too. The previous entry points stay for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migration 1054, then restart the application workers.** `gpforum
+  migrate` installs `api.moderation_lock_member_v2`, which every suspension
+  and revocation takes first. Nothing is dropped, and the previous release
+  runs on it unchanged. With a separate API runtime role, reprovision its
+  grants as for 1024.
+
+- **Apply migration 1053 only once no worker runs a release from before
+  1052.** `gpforum migrate` drops the counter columns and
+  `outbox_messages.attempts` that 1052 stopped using, and the 37 functions
+  and the row type that still wrote or returned them, which the release
+  before 1052 called. `gpforum migrate` applies every pending migration
+  before the restart, so a host on an older `main` upgrades to the commit
+  that adds 1052 first, restarts its workers, and only then to this one;
+  otherwise the old workers' thread creation, transfers and outbox writes
+  fail until they restart.
+
+- **Apply migration 1052, then restart the application and outbox
+  workers.** `gpforum migrate` drops `projection_generations`, with the
+  readiness probe of the release before 1048, and installs the functions
+  that no longer write or read the columns migration 1053 drops: the thread
+  write (`api.forum_store_write_v8`, `api.forum_write_command_v10`), the
+  thread transfer and its undo (`_v6`), the outbox claim and the realtime
+  poll (`_v6`), the outbox write and the console's outbox list (`_v4`). The
+  previous entry points stay for workers of the preceding release. With a
+  separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1051, then restart the application workers.** `gpforum
+  migrate` installs the release of a legal hold
+  (`api.privacy_release_hold_v2`), widens `deletion_actions`' check to the
+  `hold_ended` action (added unvalidated, then validated, so writes go on),
+  and installs the ranked searches that find a reply in a member's own
+  private thread for them (`api.search_ranked_v12`,
+  `api.search_thread_ranked_v4`). The previous entry points stay for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migrations 1049 and 1050, then restart the application
+  workers.** `gpforum migrate` installs the feed's excerpt read
+  (`api.forum_thread_excerpts_v2`) and an attachment link lookup without its
+  unused branch (`api.attachment_links_v6`), then builds the orphan purge's
+  index concurrently, with writes to the attachments going on. The previous
+  entry points stay for workers of the preceding release. With a separate
+  API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1048, then restart the application and outbox
+  workers.** `gpforum migrate` installs the attachment and moderation point
+  lookups planned once (twenty-four functions), the console's member list
+  with one statement per filter and a readiness probe that no longer reads
+  `projection_generations`, and drops ten indexes no statement reads. The
+  table itself stays until the next contract migration, since the
+  preceding release's readiness reads it until its workers restart. The
+  previous entry points stay for workers of the preceding release. With a
+  separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1047, then restart the application and outbox
+  workers.** `gpforum migrate` installs new versions of six functions: the
+  moderation action's reversal, which changes only an action not yet
+  reversed; the audit page, planned for the filters it has; the bookmark
+  folders' counts, cut to what their member may read; the target update,
+  which says what it changed; the digest record, under its own advisory
+  lock; and the bookmark removal, by target only. It drops
+  `api.admin_permissions_for_role`, which nothing called. The previous entry
+  points stay for workers of the preceding release. With a separate API
+  runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1046, then restart the application and outbox
+  workers.** `gpforum migrate` installs new versions of ten functions: the
+  viewer's resolution and the three forum writes, which no longer call the
+  previous release's boundaries; the subscribers and the fan-out's
+  candidates, where a thread subscription decides over a category follow;
+  the poll write, the sweep of unsigned bodies, the erasure and the thread
+  page's reads. The previous entry points stay for workers of the preceding
+  release. With a separate API runtime role, reprovision its grants as for
+  1024.
+
+- **Apply migration 1045, then restart the application and outbox
+  workers.** `gpforum migrate` cuts the identity commands' recorded answers
+  in `command_log` down to their status and ids (a refused registration had
+  recorded the password it was sent), and installs the erasure that takes a
+  member's password hashes, follows, bookmarks, notification preferences and
+  inbox (`api.privacy_revoke_user_v28`), the export with the member's
+  bookmarks (`api.portability_export_parts_v28`) and the second-factor
+  answer that no longer deadlocks with a disable
+  (`api.identity_second_factor_challenge_answer_v4`). The previous entry
+  points stay for workers of the preceding release. With a separate API
+  runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1044, then restart the application and outbox
+  workers.** `gpforum migrate` adds a `tags` column to `held_posts` and
+  installs the new versions of eleven functions: the thread transfer and its
+  undo, the tag write, the draft save, the reply link, the thread activity
+  bump, the realtime poll, the outbox gauges, the export and the review
+  queue's hold and take. It drops two reads nothing calls
+  (`api.forum_next_position`, `api.forum_thread_page_posts_scoped`). The
+  previous entry points stay for workers of the preceding release. With a
+  separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1043, then restart the application workers.** `gpforum
+  migrate` installs `api.forum_list_public_threads_v4` and
+  `api.forum_list_category_threads_v4`, the two thread lists planned once;
+  the previous entry points stay for workers of the preceding release. With
+  a separate API runtime role, reprovision its grants as for 1024.
+
+- **Apply migrations 1038 to 1042, then restart the application and outbox
+  workers.** `gpforum migrate` installs a poll vote that no longer locks the
+  thread's row against replies (`api.forum_poll_change_v4`), an erasure that
+  deletes the member's single-use tokens (`api.privacy_revoke_user_v26`),
+  the mbox archive's one-statement signature read
+  (`api.forum_protocol_signatures_v2`) and two reads planned once
+  (`api.forum_find_listed_post_v4`, `api.notification_list_inbox_v8`), and
+  drops three indexes no statement used. The previous entry points stay for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migration 1037, then restart the application workers.** `gpforum
+  migrate` installs `api.forum_thread_page_reads_v6` and
+  `api.attachment_post_files_v2`; the previous reads entry point stays for
+  workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migration 1036, then restart the application and outbox
+  workers.** `gpforum migrate` installs `api.notification_fanout_candidates_v2`,
+  `api.notification_fanout_deliver_v2` and `api.ops_publish_notifications_v2`,
+  the functions a reply's fan-out to a thread's subscribers now runs through,
+  and `api.notification_unread_count_v8`, the badge count planned once; the
+  previous entry points stay for workers of the preceding release, which
+  keep notifying one subscriber at a time until they restart. With a separate
+  API runtime role, reprovision its grants as for 1024.
+
+- **Apply migration 1035 (ADR 0156).** `gpforum migrate` adds two nullable
+  columns and a partial index to `audit_log`, replaces the four audit chain
+  functions in place and adds `api.ops_audit_chain_verify_v2`; every writer,
+  the previous release's included, follows the per-aggregate chain from then
+  on, so no restart is needed for it. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migration 1034, then restart the outbox workers.** `gpforum
+  migrate` installs `api.outbox_claim_ready_v4`, the claim that reads each
+  half of the ready rows from its own index; the previous entry point stays
+  for workers of the preceding release. With a separate API runtime role,
+  reprovision its grants as for 1024.
+
+- **Apply migration 1024, then restart the application workers.** On an
+  existing 1.0 database, `gpforum migrate` installs typed suspension
+  lookups; no database rebuild or PostgreSQL restart is needed. The old
+  SQL entry points remain for workers from the preceding release. With a
+  separate API runtime role, drain the old workers and reprovision its
+  grants before starting the new ones: [runtime role upgrade](docs/ops/sql-api-role.md).
+  Password hashes remain standard Argon2id: new salts identify UTF-8 encoding and
+  existing 16-byte salts keep their original encoding.
+
+- **Rebuild a database the 0.x migrations built (ADR 0150).** The schema
+  starts from the 1.0 baseline, `migrations/1000_foundation.sql` to
+  `1023_api_entry_points.sql`, and `gpforum migrate` refuses a database that
+  records the migrations 001 to 135, changing nothing. Make an empty
+  database, migrate it, and move the data with the `pg_dump --data-only` and
+  restore of [docs/ops/upgrade.md](https://github.com/gipidevdor/GPForum/blob/e7b50885be70209481e5a0fedf1c17c388bf9cfc/docs/ops/upgrade.md#from-a-forum-built-before-10).
+  Copy the release so that `migrations/` holds only its files: the
+  directories `001-schema/`, `002-function-api/` and `003-evolution/` are
+  gone.
+
+- **Apply migration 103 before starting the draft-enabled application.** It adds
+  private composer storage and new draft/publication/export/erasure routine
+  versions. Drain the old processes, migrate with the migration owner, provision
+  the updated runtime catalogue and start matching web/worker processes. Keep
+  the hourly scheduled-jobs timer enabled: `forum_drafts` removes expired drafts
+  in bounded batches. See the [runtime role guide](docs/ops/sql-api-role.md) and
+  [draft contract](docs/architecture/composer-drafts.md).
+
+- **Upgrade the function API with migrations 100, 101 and 102.** Search now calls
+  v6 and post edit/delete/restore share one context read. Migration 102 makes
+  the custom search plan policy effective on PostgreSQL 16/17 using static
+  PL/pgSQL, with the same query bodies and return contracts. Apply the additive
+  migrations with the ordinary migration owner, drain the old web and worker
+  processes, provision the runtime login with the new catalogue, then start
+  the updated processes. Provisioning replaces old search v2/v4 grants with v6;
+  mixed old and new workers cannot use that login simultaneously. Follow
+  the [runtime role guide](docs/ops/sql-api-role.md) for rollback.
+
+- **Install the function API before starting the updated application.**
+  Apply migrations with the ordinary migration owner: 055–070 and 099
+  complete the API introduced by 052–054. To enforce API-only access,
+  create a separate application login, provision it with `gpforum api-role`,
+  and switch web and worker credentials to it. Keep migration, restore and
+  partition-maintenance credentials in a separate operator environment;
+  the migration owner must have no superuser or `BYPASSRLS` attributes.
+  The merge and provisioning command do not change service credentials or
+  restart services. Follow the [runtime role guide](docs/ops/sql-api-role.md).
+
+### Security
+
+- **Suspended staff can no longer act in the privacy review.** The admin and
+  moderation consoles refused a suspended staff member's writes; the privacy
+  review (approve or hold a deletion, release a hold, run an erasure) checked
+  only the permission, so a suspended administrator or moderator kept those
+  powers. It now answers 403 and records a `suspended_user_block`, as the
+  other consoles do. A suspended member still asks for their own export and
+  erasure: that right is not staff work. `t/714` covers the four routes.
+
+- **A moderator can no longer suspend an administrator (migration 2051).**
+  A suspended member cannot write in the consoles, lifting a suspension
+  included, so suspending the administrators locked them out of the web.
+  Staff -- members holding a permission beyond read, write and create --
+  are now suspended only by an actor who manages the admin console, and
+  nobody suspends themselves; the console answers 403 with the reason.
+
+- **A timed suspension ends when its time is up (migration 1055,
+  `v5.0.0-2.3.2`).** It set the member's status to suspended and only a
+  revocation set it back: after the end the member still read the forum as
+  a visitor and every write refused them. Storing a timed suspension now
+  queues its end in the outbox, due a second after `valid_to`; the worker
+  delivers it on its next poll, sets the member active again unless another
+  suspension holds them, and audits `user.suspension_ended` with no actor.
+  A served suspension keeps its reputation penalty, which only a revocation
+  gives back. An hourly sweep queues any end that is missing.
+
+- **Two moderators acting on one member's suspension at once no longer
+  double it (migration 1054, `v5.0.0-2.3.4`).** A suspension was created
+  check-then-insert and revoked from an unlocked read: two suspensions of
+  one member at once stored two active suspensions and audited both, two
+  revocations of one suspension stamped and audited it twice, and a
+  suspension made while another was being revoked was answered with the one
+  about to end, so the revocation set the member free. Every write of a
+  member's suspensions now takes the member's row first, so they run one
+  after the other and each sees what the one before committed.
+
+- **Drill evidence keeps no inline password.** A drill stores the errors it
+  catches, and DBI's connect error repeats the DSN, `password=` included,
+  in a file stamped `secrets_redacted: true`; every evidence document is now
+  scrubbed of inline passwords, and `evidence-validate` refuses one that
+  still carries any.
+
+- **The command log keeps no password, address, bio or hash (migration
+  1045).** An identity command's recorded answer kept what it stored: a
+  registration refused for its username the password it was sent, in clear;
+  an accepted one the address and two copies of the password's hash; a bio
+  change the bio; an email change the address. Nothing purges the log, and
+  a registration's actor is nobody, so no erasure could find them. The
+  answers keep whether the command was done and the ids a replay reads, and
+  the migration cuts the rows already recorded down the same way. A
+  replayed registration's page names the username its request sent.
+
+- **A suspended moderator or administrator takes no part in staff work.**
+  Both staff write gates checked the binding and the second factor only, so
+  a suspended moderator kept every staff write, revoking their own
+  suspension included; six controllers checked participation themselves.
+  The two gates refuse a suspended member once, recorded as a
+  `suspended_user_block`, and a suspension store that cannot be read
+  answers 503.
+
+- **`gpforum admin grant --user-id ID --dry-run` grants nothing.** The
+  by-id form ignored `--dry-run` and gave the account the owner role, with
+  every administrative permission and its audit rows; it now says what it
+  would grant, as the other forms do.
+
+- **An erasure takes what was left of the member (migration 1045):** every
+  password hash they had, in `credentials`; what they followed, which kept
+  notifications coming to the erased account; their bookmarks, notes and
+  folders; their notification preferences, digests and inbox. It no longer
+  withdraws the invitations an erased staff member sent, which left someone
+  else's pending invitation refused.
+
+- **A suspended member could still react to posts.** Reactions arrived
+  after the suspension check was extended to likes, so `post.react` and
+  `post.unreact` were not among the writes that need participation: a
+  suspended member added and removed hearts, laughs, cheers and thoughts on
+  other members' posts. Both are now refused with 403 and recorded as
+  `suspended_user_block`, as a like is.
+- **A suspended member could still rewrite the words on their profile.**
+  A new profile picture needed a member who may participate, the bio that
+  sits beside it did not. `POST /settings/profile` now refuses a suspended
+  member with 403, recorded as `suspended_user_block`.
+- **Previewing long bodies could grow a worker by half a gigabyte.** The
+  renderer keeps the HTML of the bodies it rendered, bounded only by their
+  count: 2,048 distinct previews at the 50,000-character limit, each
+  rendered up to six times as long, grew one process by 536 MB. The memo is
+  now also bounded at 4,194,304 characters of source and HTML; the same
+  2,000 previews grow it by 8 MB.
+- **The lock kept CPAN releases with security fixes the advisory database
+  did not list yet.** `script/cpan-audit` passed, locally and in CI with
+  CPANSA-DB 20261018.001, while these were already fixed upstream. The lock
+  and the `cpanfile` floors now take them:
+  - **Cpanel::JSON::XS 4.80** (was 4.53), the backend the service decodes
+    database JSON and encodes events and audit records with: leaks, a stack
+    overflow, a use-after-free, malformed key handling and quadratic CPU in
+    decode, encode and `incr_parse` (CVE-2026-110672 to CVE-2026-110688).
+  - **Mojolicious 9.51** (was 9.49): `Mojo::DOM` left the content of
+    `title` and `textarea` unescaped when rendering (9.50), and WebSocket
+    frames sent with the handshake were read as a new request (9.51).
+  - **DBI 1.656** (was 1.655): CVE-2026-108518 and CVE-2026-111879.
+  - **Clone 0.51** and **Package::Stash::XS 0.32**, loaded by the service
+    through DateTime and DBIx::Class: C stack growth and leaks on deep
+    structures, and a crash on Perl 5.40 and later.
+  - **URI 5.40** and **HTML::Parser 3.86**, maintainer tools only.
+- **A realtime socket outlived the session it was opened in.** Signing
+  out, a password change or a sign-out everywhere ended the session, and
+  its open socket kept receiving the member's badges and followed threads.
+  Each worker now asks every 30 seconds, in one call for all its sockets,
+  which of their sessions are still live and closes the others with code
+  1008; signing out closes that session's sockets on its own worker at once
+  (ADR 0148, migration 135, `session_live_v2`).
+- **Password-reset, email-change and verification tokens waited in the
+  outbox in clear.** Whoever could read the outbox table, its backups or a
+  dead letter could follow the link. The outbox now holds each token sealed
+  with a key derived from the signing secrets and bound to its token id;
+  the mail worker opens it only to send, and a token it cannot open is not
+  mailed.
+- **Anyone could lock a member out of signing in.** The limit on the
+  sign-ins one account receives, from every address together, counted
+  anyone's attempts, so twenty wrong passwords every five minutes from
+  anywhere refused the member's own right password too. A browser that has
+  signed in to an account now carries a signed mark of it
+  (`gpforum_device`, no identifier in it), and the account's limit does not
+  apply there, only its address's; every other browser still meets the
+  account's limit (ADR 0147).
+- **Search showed hidden and deleted content until the outbox caught up.**
+  A hide or a delete leaves the index through the outbox, a while after it
+  is made, and until then search and its suggestions answered from the
+  document alone, title and body. Both now read the thread and the post as
+  they are when the query runs and leave out what is no longer visible,
+  whether its document has gone yet or not (migration 131,
+  `search_ranked_v9/v10`, `search_autocomplete_v7/v8`).
+- **A suspended member could still like, report and attach files.** Only
+  posting and messaging checked the suspension. A like, an unlike, a report
+  of a post, thread, profile or message, and an attachment upload or delete
+  are now refused with 403 as well and recorded as `suspended_user_block`;
+  bookmarks, subscriptions and read markers, which nobody else sees, stay
+  open.
+- **An email change needed no password and told the old address
+  nothing.** A signed-in session alone could move an account to another
+  address and, from there, reset its password. The change now asks for the
+  current password, checked before the address is looked up and limited as
+  a password change; the address it leaves is mailed a notice in the
+  member's language (English and Italian) saying how to stop it, and a
+  password reset or change now withdraws an email change still waiting
+  (ADR 0143).
+- **A cached page published one visitor's CSRF token, and sign-in kept
+  it.** A public page was stored with the first visitor's token in its
+  language and theme forms, so those forms failed for everyone else, and a
+  page with a flash message showed it to the visitors after. A stored page
+  now carries no token; a visitor who is not signed in is let through on
+  `Sec-Fetch-Site: same-origin`, or an `Origin` of this site, while a
+  signed-in member always needs their own session's token. A page with a
+  flash message is not cached. The token is rotated at sign-in and at
+  sign-out, and the page after sign-out is a visitor's (ADR 0141).
+- **A post could be any length.** Only drafts had a maximum; a thread,
+  reply or edit posted without one was bounded only by the request size, and
+  each read renders it. A body now holds at most 50,000 characters wherever
+  it is written -- thread, reply, edit, preview, draft -- refused in the
+  reader's language, and `post_bodies` and `held_posts` check the same
+  number (ADR 0140, migration 129).
+
+- **A few kilobytes of fence lines took seconds to render.** The body
+  renderer searched the rest of the body from each line opening a code
+  fence, and the rest of a paragraph from each `[`: 4,000 lines of "```a"
+  took over three seconds to write, and again to read. It now reads a
+  body in one pass, and a test counts the characters it reads on
+  adversarial bodies.
+
+- **The proxy's account could replace stored uploads.** `gpforum start
+  --service` set umask 007 before Hypnotoad so the socket would be the
+  `gpforum` group's, and every file the service wrote became the group's to
+  write too -- while the deployment guide puts nginx's or Caddy's account in
+  that group. The service now runs under umask 027, and only the socket is
+  bound `0660`, before the first worker accepts and kept across a
+  zero-downtime upgrade (ADR 0086).
+
+- **Behind the shipped proxy every client of the site shared one rate-limit
+  bucket.** Over the service's Unix socket Mojolicious gives a connection no
+  peer address, so the address read ahead of `X-Forwarded-For` was undef and
+  the controllers fell back to a constant: ten failed logins from anywhere
+  locked the login form for everyone for five minutes, registration and
+  password reset after five, search after sixty a minute, and the audit rows
+  and sessions hashed `unknown` for every client. A connection on the socket
+  now takes its client from the last `X-Forwarded-For` entry, the one nginx
+  and Caddy append; entries a client sent ahead of it are ignored, and a
+  request without one (`gpforum status`, curl on the socket) is keyed by its
+  own connection, never by a constant (ADR 0086). TCP listeners keep
+  `GPFORUM_RUNTIME_TRUSTED_PROXIES` as before.
+
+- **PostgreSQL can refuse direct access to forum tables.** The separately
+  provisioned runtime login owns no objects, belongs to no roles and can
+  execute only the 195 current API signatures. Versioned `SECURITY DEFINER`
+  entry points use a fixed search path; their implementations and helpers
+  have no public execution grant. Real login and HTTP tests verify allowed
+  workflows and denied table access under password authentication.
+
+- Two `gpforum secret rotate` at once lost one's new secret. Each read the
+  environment file, edited it and renamed the edit over it, so the second
+  rename dropped the token the first had written, one a scraper may already
+  have been given. Rotations now take turns on an advisory `flock` of the
+  file itself, taken again on the file a rename put in place while one
+  waited, so no lock file is left beside it.
+
+- `gpforum secret rotate metrics` promised a re-read the service refused.
+  The running service does not read the tokens again from an environment
+  file an account other than its owner may write (`mode & 022`), while the
+  rotation and `gpforum doctor` checked only what every account may read: a
+  `0660` file got "accepts both now, with no restart" and `--finish` "refuses
+  them now", while the service kept the old token and refused the new one,
+  and doctor said the settings were fine. One rule now judges the file for
+  all three (`MetricsTokens->others_may_write`): the rotation says so with
+  `chmod 0640 FILE` and names the restart, and doctor lists it under `!`
+  with the same fix.
+
+- A metrics token `gpforum secret rotate metrics --finish` dropped could
+  come back in a worker Hypnotoad forked later. The tokens follow the
+  environment file in each process that answers a check, and the manager
+  answers none: it kept the tokens the service started with, and a worker
+  forked from it -- after its accepts, or a missed heartbeat -- while the
+  file could not be used (a line that is not `NAME=value`, a mode another
+  account may write, no token) kept them too, and took the dropped token
+  while it refused the one in use. The manager now reads the file at each
+  turn of its loop, on Hypnotoad's `wait` event, so a new worker starts from
+  the list it accepted last (ADR 0124, amended).
+
+- A password change could undo the reset that took an account back. The
+  change verifies the current password before its transaction; a reset that
+  committed in between replaced that password, and the change rotated the
+  reset's password away all the same, so whoever knew the old one set the
+  last password. A reset that waited for a change answered ok and left the
+  change's password, and a change that waited for another reported success
+  with a password it never stored. A rotation now locks the member's active
+  credential, and when another rotation commits while it waits, the
+  credential that one created; a change goes on only while the credential it
+  verified is that one, and answers `invalid_current_password` otherwise.
+
+- An erasure racing a login could deadlock, and the login keep its session.
+  The erasure anonymized the account row first and revoked the credentials
+  after; a login holds the credential it verified while it opens its
+  session, whose foreign key then shares the account row. Each waited for
+  the other, PostgreSQL aborted one of them -- mostly the erasure -- and the
+  login stayed signed in. The erasure now revokes the credentials first, in
+  the order a login takes its locks, so it waits for that login to commit
+  and revokes its session with the others; and each credential and session
+  is revoked at the erasure's time or at its own creation, whichever is
+  later, where a row stamped after the erasure read its clock failed the
+  `revoked_after_created` checks, and the whole erasure with it.
+
+- A password reset that waited for a login could fail and leave that login
+  signed in. The reset reads its clock before it waits for a login holding
+  the member's credential, and the login's session is stamped after, often a
+  second later; the reset gave the session its own, earlier time, which
+  `sessions_revoked_after_created_check` refuses, so the whole reset rolled
+  back (two runs in five of `t/integration/postgres-login-reset-race.t`).
+  A logout on a host whose clock is behind the one that signed the member in
+  failed the same way. A session is now revoked at the time given or at its
+  own creation, whichever is later, in one UPDATE that touches only sessions
+  still live, so a revocation that landed first keeps its time.
+
+- A login could keep a session after a password reset took the account back.
+  The login verifies the password outside any transaction and opened its
+  session afterwards; a reset (or a password change) that committed in
+  between revoked the member's sessions before that one existed, and it
+  stayed valid for whoever knew the old password. The session is now opened
+  in a transaction that holds the verified credential `FOR SHARE` and opens
+  none once the credential is revoked, and the rotation locks the credential
+  `FOR UPDATE` before the same transaction revokes the sessions: a login
+  that got there first has its session revoked, one that came after is
+  refused as a wrong password.
+
+- `GET /health/ready` no longer shows its full report to anonymous clients:
+  without a valid metrics token it answers only
+  `{"status":...,"check":"ready"}`. The report -- every check, its error text,
+  replication slot names, `report.problems`, the runtime -- needs the same
+  token as `/metrics` (`Authorization: Bearer` or `X-GPForum-Metrics-Token`,
+  previous tokens accepted during a rotation). The status code is unchanged in
+  every case, and a wrong token gets the status, not a 401, so a stale probe
+  token cannot take nodes out of service. `GET /health` answers
+  `{"status":"ok"}` without the token. Both send `Cache-Control: no-store`.
+  Development and test without a configured token still show the full reports.
+
+- Erasing a member also deletes all their export requests, whatever their
+  status, and removes the bundle from their stored `privacy.export` answers in
+  the command log, in the same transaction; the audit keeps the export events
+  and lists the discarded requests. An export locks the member's row until it
+  commits, so a concurrent erasure waits for it and then discards the bundle,
+  and an export for an erased member is refused (`not_found`).
+
+- Session revoke and validation check, in SQL, that the session belongs to the
+  member id presented. A DBIx::Class `find` had dropped the member id from the
+  query, so one member could revoke or validate another member's session
+  given its id.
+
+- **The replication docs no longer recommend `pg_monitor`**, which also
+  grants `pg_read_all_settings` and with it a standby's `primary_conninfo`,
+  replication password included; `pg_read_all_stats` is enough.
+
+- **A `password=` in `GPFORUM_DATABASE_DSN` is redacted in command failure
+  messages**, on stderr and in `--json` output; DBI's connect error printed
+  it as is.
+
+- **A static response that writes the session cookie back is marked
+  `private`**, so no shared cache can store one visitor's session cookie and
+  serve it to another.
+
+- **Search no longer shows a moved thread's documents under the category it
+  left** (ADR 0102): a thread moved from a public category into a private
+  one stayed searchable by anyone until its reindex batch ran. Documents
+  whose live placement disagrees are hidden until the outbox reindexes them.
+
+- **A cancelled search no longer logs the visitor's search text.** The
+  degraded-search log line carried the whole database error, with the SQL
+  and its bound values; it now holds only the error.
+
+- **An account that has not confirmed its e-mail is no longer a member.**
+  Effective visibility (ADR 0102) counted `pending` accounts as members, so a
+  session for one read members-only categories and threads. Such an account
+  cannot sign in and confirming makes it `active`, so it now reads what an
+  anonymous visitor reads.
+
+- **Email::Sender 2.603** (was 2.601): CVE-2026-93012, command execution
+  through an envelope address on Windows. Good Phorum does not run on Windows;
+  the lock takes the fix anyway, and the `cpanfile` floor now requires it.
+  DBI 1.655, Cpanel::JSON::XS 4.53 and DateTime::TimeZone 2.71 are updated
+  too. 34 distributions nothing requires any more (Email::MIME, the
+  WWW::Mechanize test stack, DateTime::Format::Pg and others) left the lock.
+  `script/cpan-audit` reports no unexcluded advisory.
+
+- **`X-Forwarded-For` is believed only from trusted proxies.** Any sender's
+  header was believed, so a client that reached the application directly
+  could name its own address, and with it its rate-limit bucket. Hypnotoad
+  now trusts the loopback by default (`GPFORUM_RUNTIME_TRUSTED_PROXIES`).
+
+- **Logins are limited per account, not only per address.** Ten tries per
+  address every five minutes let many addresses try one account thousands of
+  times. An account now takes at most twenty tries every five minutes, from
+  every address together.
+
+- **A session the database could not check is no longer served as its
+  user.** When validating the session cookie failed, the request went on as
+  the cookie's user: a session revoked by a password change or a sign-out
+  everywhere acted again whenever the check failed and the page's own
+  queries did not. The request now gets 503; the cookie is kept, so a valid
+  session works again once the database answers.
+
+- **Login timing no longer tells which accounts exist.** A login for an
+  unknown or deleted account answered at once, while a wrong password took an
+  Argon2 verification (68 ms here): timing the reply enumerated usernames and
+  addresses. Every failed login now pays the same verification, against a
+  per-process decoy hash (69 ms).
+
+- **A login could be replayed without the password.** Logins were
+  idempotent commands whose stored answer held the session's bearer token:
+  sending the victim's command id and identifier with any password signed
+  the sender in as the victim, and the token sat in `command_log` in plain.
+  A login no longer passes through the command log; each attempt checks the
+  password. Reproduced and pinned against the application on PostgreSQL.
+- **Review fixes to effective visibility's third stage (ADR 0102).** Any
+  question about a hidden thread died (a restricted-hash read), failing
+  its notifications, downloads and realtime; realtime announced a private
+  reply's id and author to every subscriber of a public thread; hiding or
+  deleting a thread silenced every open page for good, even after a
+  restore; "mark all read" counted notifications the inbox hides. The
+  unread count now stops at "more than 99" instead of growing with the
+  backlog on every delivery.
+- **Hidden and restricted content leaves the public page cache at once.**
+  A thread's cached public page was never invalidated, and hiding or
+  restoring a post, locking a thread or reversing a moderation action did
+  not reach the cache at all: anonymous visitors kept seeing hidden content,
+  or a thread whose category turned private, until the entry expired (60 s
+  by default). Thread and post events now purge the thread's page and its
+  category's; moderation and category changes purge every public page.
+- **New threads and replies inherit their place's visibility (ADR 0102).**
+  A thread created without a visibility was public whatever its category,
+  and the reply form sent the thread's own visibility: in a members-only
+  category both were stored public, and became readable by anyone the day
+  the category was opened. They now inherit the effective visibility of
+  their category or thread, and a broader one is refused. The new-thread
+  form's visibility defaults to "Same as the category".
+- **Inboxes, lists and realtime channels respect effective visibility (ADR
+  0102).** A notification, mention, bookmark or feed item kept showing its
+  thread after the thread's category turned private or the reader lost
+  their grant; the unread count and the realtime badge counted them. They
+  now show only what the reader can still read. A realtime thread channel
+  ignored the space, shut members out of members-only threads and never
+  re-checked a subscriber; it now opens to the thread's readers and asks
+  again at every broadcast.
+- **Attachment downloads respect effective visibility (ADR 0102).** A file
+  attached to a post in a private category was served to anyone, anonymous
+  visitors included, because only the post's own visibility was checked. It
+  is now served only to readers of the post or thread (its space, category,
+  thread and post) and to its uploader.
+- **Review fixes to effective visibility's first stage (ADR 0102).** The
+  second page of a thread (`?after=`) dropped the post visibility filter for
+  signed-in readers, showing private replies; restoring a thread looked it up
+  without the viewer; a category page's thread list used a viewer without
+  that category's grant context; a suspended author kept reading their own
+  private threads; a thread-scoped `category.read` binding was read as a
+  grant on its whole space. All are fixed and pinned by tests that fail on
+  the old code.
+- **Notifications and mentions no longer leak private content (ADR 0102).**
+  A reply or mention in a private or members-only place notified every
+  subscriber or mentioned user, with the thread, the post and the actor. A
+  recipient is now notified only if they can read the source, and a mention
+  of someone who cannot is not recorded.
+- **Profiles and page metadata respect category visibility (ADR 0102).**
+  A member's public profile listed their threads and replies in private
+  categories, and a thread page in a members-only category asked to be
+  indexed with OpenGraph data; both now judge the category and space too.
+- **Search no longer shows private or members-only categories' content
+  (ADR 0102, stage 2).** Search and autocomplete judged only a document's
+  own visibility; they now also judge its category and space, live, for
+  the reader.
+- **Private and members-only categories no longer leak (ADR 0102, stage
+  1).** A category or space an administrator marked private or members-only
+  was listed to anonymous visitors and its pages and threads answered 200.
+  Category lists and pages, thread lists and pages, and post lookups now
+  apply the effective visibility of the space, the category, the thread and
+  the post for each reader; denied reads are 404. Members-only threads, which
+  were hidden from everyone, are now readable by members, and authors read
+  their own private threads. Search, feeds, notifications and the other
+  surfaces follow in the next stages.
+- Harden `script/gpforum-mail-check` evidence: always set
+  `secrets_redacted` / `private_beta_claimed=false`, emit `residual_gaps`, and
+  scrub SMTP passwords plus the internal probe token from nested
+  strings/errors (including connect failures). Docs + evidence-live updated.
+- Registration remints user `id` once when the unique primary key
+  conflicts, and does not return another user's account.
+- Password credential writes remint `id` once when the unique primary key
+  conflicts, and do not return another user's credential.
+- Identity token writes remint `token_id` once when the unique primary key
+  conflicts, and do not return another user's token.
+- Session writes remint `session_id` once when the unique primary key
+  conflicts, and do not return another user's session.
+- Identity token writes retry hash allocation once when the unique
+  `token_hash` key conflicts, and do not return another user's token.
+- Session writes retry hash allocation once when the unique `session_hash`
+  key conflicts, and do not return another user's session.
+- A second unused password-reset, email-change, or email-verification
+  token for the same user replaces the open row instead of inserting
+  another. The previous unused hash is invalidated. Email verification
+  is a legal `identity_tokens.token_type`.
+- Mojolicious keeps the current `GPFORUM_SESSION_SECRET` first for new
+  cookies and still validates previous secrets from
+  `GPFORUM_SESSION_SECRETS`. `/metrics` accepts previous scrape tokens from
+  `GPFORUM_METRICS_TOKENS`. Staging and production reject the development
+  default in both the current secret and the previous list.
+- Staging and production profiles send
+  `Strict-Transport-Security: max-age=31536000; includeSubDomains` and mark
+  session cookies Secure. Development and test omit HSTS and the Secure
+  flag. `production-small` and `production-medium` follow the same TLS
+  cookie/HSTS policy as `production`.
+- Wired the existing `forum_retrieval` limiter on `GET /search`, and added
+  `write_rate_input` hashes on `Web::ModerationAccess`, `Web::AdminAccess`,
+  and `Web::PrivacyAccess` so moderation writes, admin writes, and privacy
+  requests share the same CSRF/telemetry write helpers as forum
+  `write_user_id`.
+- Updated every locked CPAN distribution to its latest release and pruned
+  32 orphaned distributions from `cpanfile.snapshot` (187 -> 157). DBI moves
+  from 1.647, which carried 11 CPANSA advisories, to 1.653; URI, HTTP::Date,
+  and List::SomeUtils::XS also leave vulnerable versions. Security floors for
+  those transitive dependencies are now declared in `cpanfile`, and
+  `cpan-audit` reports no open advisories apart from the two unfixed
+  Mojolicious default-secret advisories, which `GPFORUM_SESSION_SECRET`
+  enforcement already mitigates.
+- Raised runtime CPAN floors to current secure releases, including
+  Mojolicious 9.49, Cpanel::JSON::XS 4.52 (CVE-2026-9334,
+  CVE-2026-9516), Crypt::Argon2 0.032, DateTime 1.67, DBD::Pg 3.21.2,
+  and Mojo::Pg 5.0.
+- Rejected non-hash JSON in `Outbox::ClaimedMessage` so Cpanel::JSON::XS
+  4.42+ `allow_nonref` cannot treat scalar payloads as outbox events.
+
+### Added
+
+- **Legal pages built on the texts that require them.** The terms follow
+  the Digital Services Act (Regulation (EU) 2022/2065, arts. 14 to 21:
+  restrictions, moderation and its automated tools, notices, reasons,
+  complaints); the privacy notice follows GDPR article 13 in its order;
+  the cookie notice lists every cookie with its purpose and lifetime, as
+  the Garante's guidelines of 10 June 2021 ask for technical cookies; a new
+  legal notice (`/legal/notice`, in the footer) names the service provider
+  (D.Lgs. 70/2003 art. 7) and the Act's single point of contact (arts. 11
+  and 12). `/.well-known/security.txt` follows RFC 9116. Each page states
+  its basis, lists its sections and says what the operator has not given.
+  The copy describes only what GPForum does: where it does not yet send a
+  statement of reasons or take complaints, the pages say to write to the
+  point of contact.
+
+- **Staff end a legal hold (migration 1051).** Each active hold on the
+  privacy review page has its own form: with a reason, the hold ends, and
+  the deletion request it held goes back to approved, when its erasure job
+  waits, or to pending. It records a `hold_ended` action and
+  `privacy.retention_hold_ended`. Nothing ended a hold before, so a held
+  request could never be approved or erased.
+
+- **Reactions on posts.** Beside the like, a member gives a post one of four
+  reactions (heart, laugh, celebrate, think), each once and never on their
+  own post, and takes it back (ADR 0145, migration 133). Each is one row in
+  `post_reactions`, counted when the page is read; the thread page's one
+  read (`api.forum_thread_page_reads_v3`) answers them with the likes, the
+  writes are commands (`api.community_react_command_v1`,
+  `api.community_unreact_command_v1`) with their events, and erasure and
+  export carry them (`api.privacy_revoke_user_v19`,
+  `api.portability_export_parts_v21`).
+
+- **Address and range bans.** Staff with the admin console ban one IPv4
+  or IPv6 address, or a CIDR range of at most /16 (IPv4) or /32 (IPv6),
+  from `/admin/address-bans`: from registering, from signing in (and
+  registering), or from every write, with a reason for staff and a length
+  of an hour to a year. They edit and lift bans, see who placed, edited
+  and lifted each, check which ban covers an address, and see the address
+  they write from; a ban that would cover it, for sign-in or writes, is
+  refused. Every write request asks, in one place around the action, for
+  the live ban covering its client -- one GiST lookup in PostgreSQL --
+  and a covered one gets a plain refusal naming neither reason nor range;
+  reads ask nothing, and signing out, language and theme, one-click
+  unsubscribe, privacy requests and the ban forms are never refused. Every
+  change is audited without the reason; bans are left out of the export
+  and an erased staff member's name leaves them. Migration 134, ADR 0146.
+
+- **Profile pictures.** On the new `/settings/avatar` a member uploads a
+  PNG, JPEG, GIF or WebP of up to 5 MB and 8,000 pixels a side; it goes
+  through the attachment validation and the malware scan, and the system's
+  image tool -- libvips' `vipsthumbnail` (`libvips-tools`, `vips`), or
+  `sips` on a Mac -- crops it about its centre to a square kept at 64, 128
+  and 256 pixels with nothing of the original's metadata. It is shown on
+  the profile and beside the member's posts in place of the initial; the
+  one shown stays while a new one is checked, and a picture the scan
+  refuses or the tool cannot read is never shown. The member replaces or
+  removes it; staff holding `avatar.moderate` remove one from the profile,
+  audited with the reason given. Without the tool (or with
+  `GPFORUM_IMAGE_TOOL=none`) pictures are off. Erasure deletes the files
+  and the rows; the export says what is shown (ADR 0144, migration 131).
+
+- **Two-step sign-in with an authenticator app.** On the new
+  `/settings/security` a member gives the password, scans a QR code drawn by
+  the forum itself (or types the key), and confirms with a first code; ten
+  single-use recovery codes are shown once and the member's other sessions
+  end. A sign-in then asks for a six-digit code, or a recovery code, after
+  the password, each accepted once; five wrong codes end the attempt, ten in
+  an hour pause sign-in for that hour. The password and a code turn it off,
+  and the member is mailed in their language whenever it is turned on, off,
+  reset or paused. Staff see on a member's admin page whether it is on --
+  never the secret -- and an administrator resets it for a member who lost
+  their phone; on `/admin/security` an administrator who has it on may
+  require it of every staff member, whose consoles stay closed until they
+  set it up. Secrets are sealed with `GPFORUM_SECOND_FACTOR_KEY`, which a
+  deployed forum needs before it offers two-step sign-in (`openssl rand -hex
+  32`; rotate through `GPFORUM_SECOND_FACTOR_KEYS`). Erasure deletes it and
+  the export says only whether it was on (ADR 0142, migration 130).
+- **Members write to each other in private.** A profile offers "Send a
+  message"; two members hold one conversation, listed on the new
+  `/messages` inbox with how many messages wait, and read and answered on
+  its own page, plain text of up to 5000 characters, never cached and found
+  by nobody else. The recipient is notified once per unread run, in the
+  inbox and by email under the new "Private messages" kind of the
+  notification settings, and their open pages get a realtime hint; nothing
+  carries the text. A block either way refuses messages, an ignore silences
+  their notices, a suspended member cannot send, the watched words and the
+  link rule screen them, and a new member starts at most 3 conversations a
+  day (20 for others). A member reports a message to the moderators, who
+  read only that message, through a form that audits the reading. Erasure
+  deletes the member's messages and the export holds the ones they wrote
+  (ADR 0139, migration 128).
+- **Staff keep private notes on members.** Staff holding the new
+  `member_note.view` permission read notes about a member on the member's
+  admin page, and the three newest beside every report about the member's
+  profile, posts or threads, with who wrote and last edited each and when;
+  `member_note.write` adds, edits and deletes them through forms that work
+  without JavaScript, with CSRF, the moderation rate limit and suspended
+  staff refused. Every change is audited without the text. The member never
+  sees them; they are in no feed, search, event or realtime message, the
+  data export leaves them out and erasure deletes them (ADR 0138, migration
+  125).
+- **Bookmarks can be filed in folders.** A member names a folder with the
+  note when saving a bookmark, or moves a bookmark from the bookmarks page,
+  which now names their folders with counts and lists one folder or all
+  (ADR 0136, migration 121). The folder is a row beside the bookmark,
+  written after the bookmark command through
+  `api.community_set_bookmark_folder_v1`; the list is
+  `api.community_list_bookmarks_v3`, with the folder joined, and the folders
+  `api.community_list_bookmark_folders_v1`.
+
+- **A daily or weekly email digest** (PB-08, D01, ADR 0078 amended,
+  migration 119). A member who turns the Digest channel on in `/settings`,
+  daily or weekly, receives one email per UTC day or week naming the
+  threads they follow (and those in categories they follow) with posts
+  they have not read: each thread linked, with its category and how many
+  posts are new, in their language, as plain text and HTML. The hourly
+  scheduled-jobs runner queues it through the outbox, once per member and
+  period and at most `--limit` members a run; the worker checks the
+  preferences again as it sends. The mail's one-click unsubscribe link
+  turns the digest off, audited. Nothing to report sends nothing.
+
+- **Notification preferences by kind, notification email and one-click
+  unsubscribe** (PB-08, D02/D04/D05, ADR 0078 amended). In `/settings` a
+  member turns replies in followed threads, mentions and moderation notices
+  on or off for the inbox and for email; by default all reach the inbox
+  and mentions and moderation notices are emailed. Fanout follows these
+  choices, and a notification taken by email is sent through the outbox
+  in the member's language, after its preferences are read again. Every
+  notification mail has a signed unsubscribe link and the RFC 8058
+  `List-Unsubscribe` and `List-Unsubscribe-Post` headers; opening the link
+  changes nothing, its button or the mail client's one-click POST stops
+  that kind of email (or all of it), audited. Account mail (verification,
+  password reset, email change) is never affected.
+
+- **Threads carry tags.** An author names up to five tags with the title,
+  on the new-thread form and in the edit-title sheet (ADR 0135, migration
+  117): each a link under the title on the thread page, on its category's
+  rows and on the home page's latest list. `/tags` lists every tag with how
+  many discussions the reader may read under it, and `/tags/:slug` those
+  discussions, in every category or in one (`?category=ID`). The thread
+  command is untouched: the tags are set after it, through
+  `api.forum_set_thread_tags_v1`, and read per page through
+  `api.forum_thread_tags_v1`; the tag pages read
+  `api.forum_list_tagged_threads_v1` and `api.forum_list_tags_v1`.
+
+- **First-post review queue** (PB-05, ADR 0134). Staff can hold a new
+  member's first posts (a number from 1 to 20, set in `/admin/automod`;
+  off by default) and, optionally, the posts the watched words or the link
+  rule flag. A held thread or reply is kept outside threads and posts, so
+  no page, count, feed, search, realtime message, notification or JSON
+  answer carries it; its author sees it as awaiting review on `/pending`
+  and may withdraw it. Staff publish or reject it from
+  `/moderation/review`; a publication is the author's own post, written
+  then with every check of a write, and the author is notified. Every hold,
+  decision and rule change is audited.
+
+- **Similar discussions while a thread is written**: as the title is typed
+  on the new-thread form, the threads it resembles appear under it, from the
+  same bounded and permission-aware autocomplete the search box uses, so a
+  discussion already open is found before a second one is started. Nothing
+  changes without the page's script.
+
+- **Watched words and automod rules** (PB-05, ADR 0133). In the admin
+  console, `/admin/automod` keeps up to 500 watched words or phrases (whole
+  words, any case, a star at either end for a word that runs on), each
+  blocking, flagging or replacing what it matches in new threads, replies,
+  post edits and thread titles, and one link rule: at most N links in a post
+  by a member below a trust level, blocked or flagged. A blocked write comes
+  back saying which words, in the writer's language; a flagged one is posted
+  and lands in the moderation queue as a report by *Automod*; a replaced one
+  is stored replaced. Staff who moderate every thread are not screened.
+  Every rule change and every decision is audited. Migration 115 adds
+  `watched_words`, `automod_settings`, the `moderation_watched_word_*` and
+  `moderation_automod_*` functions, and lets a report have no reporter.
+
+- **A reply may answer one post** (ADR 0132): "Reply" under a post opens
+  the composer naming it ("Replying to #12 by @name", with a way to drop
+  it), and "Quote" does the same and quotes the words; once the reply is
+  made it is linked to the post (`post_replies`, migration 114), and the
+  page shows "In reply to #12" under its byline, a link to the post. The
+  reply command is untouched; a link that cannot be written leaves the
+  reply as it is.
+
+- **Operators say something to every reader**: administrators publish a
+  site announcement from `/admin/announcements` (plain text, up to 500
+  characters, as a notice or a warning) and retire it when it has served;
+  every page shows the active ones, newest first and at most three, under
+  the site header. Publishing and retiring are audited commands with their
+  events, and purge the public page cache at once (migration 113,
+  `site_announcements`, ADR 0131).
+
+- **Members ignore and block each other** (PB-06, ADR 0130). From a member's
+  profile a signed-in reader ignores them (their posts collapse behind a
+  "show" control in threads, and their replies and mentions leave the
+  reader's inbox, unread count and mentions page) or blocks them (as ignore,
+  and they can no longer mention the reader). `GET /settings/ignored` lists
+  the members, at most 500, with a way to remove each. Staff and moderation
+  notices are never silenced; nobody is told. Erasure empties both sides of
+  the lists and the export carries the member's own. Migration 112 adds
+  `member_relations`, the `community_relation_*` functions and new versions
+  of the inbox, unread count, mentions, erasure and export functions.
+
+- **A member says a few words about themselves**: Settings opens with a
+  Profile section whose bio (plain text, up to 500 characters) shows on the
+  public profile as paragraphs; an empty bio takes it down. Erasing the
+  account clears it and a member's export carries it under `profile`
+  (migration 111: the `users.bio` column, the identity update, the erasure
+  update and the export each at a new version, ADR 0126 section 2).
+
+- **Search says where to look**: the search form offers Everything, Thread
+  titles or Posts (`scope`), kept with the query across filters and pages;
+  the ranked search takes it as one more parameter (migration 110,
+  `search_ranked_v7/v8`; the shipped versions stay, ADR 0126 section 2).
+
+- **A member likes a post, and takes the like back** (ADR 0129): `POST
+  /p/:post_id/like` and `/p/:post_id/like/remove`, each a native form under
+  the post with the count beside it, pressed when the reader gave one; a
+  reader not signed in sees the count. A like is one row per member and
+  post (migration 109, `post_likes`), counted when the page is read, never
+  on one's own post and never on a post that is not there to be read; each
+  like and unlike records its event (`post.liked`, `post.unliked`), the
+  thread's public page is refreshed, erasing an account deletes its likes
+  and a member's export lists them.
+
+- **Staff pin and unpin a thread**, from the thread's own tools and from the
+  moderation actions page: `POST /moderation/threads/:thread_id/pin` and
+  `/unpin` record a moderation action, its event (`thread.pinned`,
+  `thread.unpinned`), the audit entry and the public cache purge, the way
+  locking does; a pinned thread leads its category and wears its badge on
+  its page as in every list. The thread's tools now also lock, unlock and
+  hide it for a reader who moderates threads, each form with the reason the
+  audit log keeps and a way back to the thread (`return_to`); before, every
+  moderation form lived in the report queue. The reader of a request
+  resolves, with their grants, whether they hold the global
+  `thread.moderate` binding (migration 108: viewer resolution, moderation
+  target and target update each at a new version, ADR 0126 section 2).
+
+- Private thread and reply drafts with native Save/Preview, a drafts list,
+  resume/delete and progressive JavaScript autosave/live preview. PostgreSQL
+  revision checks prevent silent concurrent overwrite; successful publication
+  consumes the draft atomically and failed publication preserves it. Drafts are
+  limited to 100 per owner, expire 30 days after saving, appear in member exports
+  and are removed by account erasure. Preview uses the existing safe post markup
+  renderer. Local PostgreSQL, HTTP, JavaScript and browser behavior checks pass;
+  release gates remain separate. [ADR 0128](docs/adr/0128-private-composer-drafts-and-canonical-preview.md)
+  and the [composer guide](docs/architecture/composer-drafts.md) record its contracts.
+
+- **`sudo gpforum setup` links `gpforum` into `/usr/local/bin`**, so the
+  commands it offers next run from any directory; a `gpforum` already there
+  that is this checkout's is left as it is, another is named with the `ln
+  -sf` that replaces it.
+
+- **`sudo bin/gpforum setup` installs the dependencies first** on a fresh
+  clone, as `make install-deps-production` does (`install-deps-postgres`'s
+  set for `--environment development`), saying what it runs, then goes on as
+  setup; `--dry-run` says so and installs nothing. `script/bootstrap-deps
+  --for-setup` is what it runs.
+
+- **`gpforum upgrade`** prints the three commands that upgrade the forum,
+  written for this host: the code and its dependencies, then `gpforum migrate`
+  and the restart this host's service manager needs, then `gpforum doctor
+  --upgrade`, with the backup to take before them. `gpforum help` lists it
+  under Maintain, and `docs/ops/upgrade.md` gives the same lines.
+
+- `gpforum setup` sets a host up in three questions (ADR 0122): the public
+  address, the database and how mail leaves; Enter takes each suggestion. As
+  root on Linux or FreeBSD it makes the `gpforum` account and its uploads
+  directory; it writes the environment file (0640, `root:gpforum` as root)
+  with new secrets, none printed; it makes the role and database as
+  PostgreSQL's superuser, sending the password only as a SCRAM verifier, or
+  prints the two `psql` commands; it migrates and names the next steps. Run
+  again, it changes nothing and says so, and it replaces a setting only when
+  asked or with `--force`.
+
+- `gpforum service print [systemd|rc|launchd|nginx|caddy]` prints the service
+  files for this host -- its code directory, environment file, public name and
+  listen address, the outbox worker on every OS -- and the commands that copy
+  and start them (ADR 0123). It installs nothing; `--to DIR` writes them to a
+  directory to read first. `gpforum doctor` offers it for a missing or changed
+  unit and names this OS's nginx directory.
+
+- `gpforum backup [--to DIR]` dumps the database (`pg_dump -Fc`) and archives
+  the uploads with a manifest of versions, sizes and SHA-256 into a dated
+  directory only its owner reads; `gpforum restore --check DIR` checks that a
+  backup can be restored, without restoring it.
+
+- **The main pages are warmed before a pre-forking server forks.** Under
+  Hypnotoad (or `prefork`) the manager renders the home page, the category
+  index, the login and registration forms and the newest thread with its
+  category before it forks, so every worker starts with the templates
+  compiled, the statements prepared and the memos filled: the first request
+  to a worker took 95 ms for the home page and takes 21. One line in the
+  log says what was warmed. `GPFORUM_WARMUP_ENABLED=off` turns it off; a
+  single process (`daemon`, morbo) is not warmed. ADR 0121.
+
+- `gpforum doctor` checks a forum the way an operator would, one line each,
+  in Italian or English: every setting, as the service checks them at its
+  start; the host's limits; the database, with a refused connection, a wrong
+  password or a missing database said in one sentence; migrations pending
+  and budgets that drifted; the rest of the readiness report; the outbox
+  worker, by the age of the oldest message nobody sends; mail-check's dry
+  run and antivirus-check's findings; the service files installed against
+  this release's `deploy/`, the web service and the outbox worker running
+  the code on disk, and systemd's timers; and the public address over TLS.
+  Under each problem a `Fix:` line names the variable, the file and the
+  command, and the last line counts what there is to fix. `--json` gives
+  the same findings; it exits 1 when something failed.
+  `gpforum doctor --upgrade` checks what an upgrade leaves behind: the
+  settings, the modules this release needs for the Perl running it, pending
+  migrations, unit files that differ from the release's and services still
+  on the code before. `docs/ops/doctor.md` explains every line, and
+  `docs/ops/upgrade.md` is the upgrade in three commands ending with it.
+
+- `gpforum status` prints the running service's whole `/health/ready`
+  report, one line per check with the fix under each problem, asked with
+  the metrics token from the environment file: no curl, token or jq. It
+  asks where Hypnotoad listens, not the proxy, says when the service does
+  not answer or keeps its report from a token it does not hold, and exits 0
+  when the service is ready.
+
+- `gpforum admin create --email --username` makes the forum's owner from the
+  shell: an account active and verified at once, bound to the owner role,
+  audited as `admin.bootstrap_created`. It asks for the password twice
+  without echo, or reads it with `--password-stdin`, and ends with where to
+  sign in. `gpforum admin grant EMAIL|USERNAME` makes an existing member the
+  owner, and says when that account cannot sign in yet. The first
+  administrator needs neither psql nor a mail server.
+  `bin/gpforum-admin-bootstrap --user-id` keeps working, as `gpforum admin
+  grant --user-id`.
+
+- `gpforum`, the front door (ADR 0120). `bin/gpforum` runs from anywhere,
+  through a symlink on the `PATH` too, and re-runs itself under Carton when
+  `local/` is not on `@INC`: `gpforum migrate` where the documents said
+  `script/gpforum-carton exec perl -Ilib bin/gpforum-migrate`. It reads the
+  environment file the service reads -- `/etc/gpforum/gpforum.env`,
+  `/usr/local/etc/gpforum/gpforum.env` on FreeBSD,
+  `$(brew --prefix)/etc/gpforum/gpforum.env` on macOS, or `--env-file FILE`
+  -- under what the shell sets, so a command typed by hand sees the
+  service's settings without `set -a; . /etc/gpforum/gpforum.env`. Its help
+  is its own, in Italian or English: the verbs grouped as Set up, Run,
+  Check and Maintain, then which file it read; `gpforum help --all` adds the
+  benchmarks, drills and Mojolicious's commands, and `gpforum help VERB` the
+  verb's usage. Every `bin/gpforum-*` command answers to a verb
+  (`gpforum partitions`, `budgets`, `outbox`, `dead-letters`) and to its old
+  name, and `gpforum start --foreground` is the development server. A
+  mistyped verb is answered with the nearest one.
+
+- **Relative times** ("3 minutes ago", "3 minuti fa") in a `<time>` element
+  whose title keeps the absolute local time, per the reader's locale and zone,
+  without JavaScript. Cached anonymous pages never carry a signed-out
+  member's time zone.
+
+- **Badge failures reach the log and `/metrics`**: `notifications.badge_failures`
+  and `last_badge_error`; each message is logged at most once every five
+  minutes per process, without the SQL, bind values or a DSN password.
+
+- **`make fresh-checkout`** clones the current commit into a temporary
+  directory and runs the README quick start and each step of `make check`
+  there, timing each; with `GPFORUM_DATABASE_DSN` it also creates a plain
+  role and database and runs the integration tier. The README now says the
+  database commands need a running PostgreSQL and how to start one.
+
+- **Replication on `/metrics`** (ADR 0058): on a primary, each standby's
+  state, replay lag and bytes behind, and each slot's retained WAL; on a
+  standby, the age of its last replay. `/health/ready` gains a
+  `replication_slots` check, degraded when an inactive slot keeps more than
+  1 GiB of WAL. Grant `pg_read_all_stats` to see standby details.
+- **The plan gate checks deep and signed-in pages**: halfway down the longest
+  thread, the largest category and the latest threads; it fails when a deep
+  page filters more rows than its first page or ignores its cursor.
+
+- **`--json` on the state-reporting commands** (`migrate`,
+  `partition-maintenance`, `platform-check`, `query-budget`,
+  `scheduled-jobs`, `search-rebuild`, `outbox-dispatch`,
+  `dead-letter-replay`): one JSON object per line with a `status`, flushed as
+  printed; exit codes unchanged. `gpforum-migrate --check` exits 1 when
+  migrations are pending or an applied file changed.
+
+- **Fingerprinted static assets** (quality program 7.7): stylesheet and icon
+  URLs carry `?v=<12 hex digits of the file's SHA-256>`, taken at startup; a
+  current digest is served `public, max-age=31536000, immutable`, a bare or
+  stale one `max-age=3600`. The shipped nginx and Caddy configs match.
+
+- **`/admin/settings`**: every configuration variable with its effective
+  value and whether it comes from the environment or the default. Secrets
+  show only as set or not set, and a password inside a DSN or URL is
+  redacted; the page says to edit `/etc/gpforum/gpforum.env` and restart.
+- **Send test message** (`/admin/settings`): one message through the
+  configured transport to the signed-in admin's own address only, audited
+  as `admin.mail_test_sent`, with the transport's error shown without
+  credentials, stack traces or the recipient.
+- **Run antivirus check** (`/admin/settings`): the check
+  `bin/gpforum-antivirus-check` runs, from the console, audited as
+  `admin.antivirus_checked`.
+- **`docs/ops/console-and-cli.md`** maps every `bin/` command to its console
+  page or says why there is none; a test fails when a command is missing or
+  a named route is not registered.
+
+- **Migrations can build indexes without stopping writes.** A migration
+  whose first line is `-- gpforum:no-transaction` runs one statement at a
+  time, so `CREATE INDEX CONCURRENTLY` works; the runner sent every file
+  whole, inside a transaction, so every index so far locked its table's
+  writes while it built. From migration 049 on, an index on an existing
+  table must be built this way (`t/209-migration-indexes.t`).
+
+- **A streaming standby and failover** (ADR 0112,
+  `docs/ops/standby-and-failover.md`): the standby follows through a
+  replication slot, `GPFORUM_DATABASE_DSN` names both servers with
+  `target_session_attrs=read-write`, and failover is a manual promotion.
+  `script/standby-drill` (`make standby-drill`) rehearses it on throwaway
+  clusters: on PostgreSQL 18.6 a write reached the standby in about 50 ms,
+  promotion took about 160 ms, and a connected application reconnected to
+  the new primary by itself.
+
+- **`/health/ready` names the runbook for every check that is not ok**
+  (`runbook`, a path in the repository), so a degraded or failed check says
+  what to do about it.
+
+- **`docs/THREAT_MODEL.md`**: what Good Phorum protects, from whom, the trust
+  boundaries, and at each one the mitigation and the test that pins it, with
+  the residual risks said plainly.
+
+- **Search and cache maintenance on the console.** `/admin/jobs` shows
+  whether search is behind and how the last console rebuild went, rebuilds
+  the index through the outbox (one batch per message, retried like any
+  other work) and purges the public page cache; both are audited.
+- **A refused permission says which.** A permission refusal (403) from the
+  admin, moderation or privacy console logs, at info, the permission
+  checked, the user and the binding that would have granted it, so an
+  operator can see why a moderator is refused on a category. A user's
+  bindings page now shows each binding's space.
+- **`bin/gpforum-search-rebuild`** (and `script/search-rebuild`): rebuilds
+  the search index from the forum's threads and posts, in batches, removing
+  documents whose source is gone, deleted or hidden; `--status` reports how
+  far search may be behind. See `docs/ops/search-rebuild.md`.
+- **Per-member time zones.** Settings has a time zone field; dates and
+  times across the forum are shown in the member's zone, or the forum's
+  default, and every time names its zone ("14:00 CEST"). Migration 044 adds
+  `users.preferred_timezone`.
+- **Partition horizon alert.** `/readyz` reports `partition_horizon` as
+  degraded when any partitioned table has less than 45 days of partitions
+  ahead, or when rows have spilled into a DEFAULT partition. Point readiness
+  alerting at it; the fix is `bin/gpforum-partition-maintenance --apply` in a
+  maintenance window (`docs/ops/partition-maintenance.md`).
+- **Replay dead letters** (ADR 0056), from the Replay button on
+  `/admin/jobs` or `script/dead-letter-replay --id ID`; `--list` reviews
+  them from the shell. A replay enqueues a new outbox message for the same
+  event and envelope with a fresh retry budget; the cancelled message and
+  the dead letter stay as evidence, each dead letter replays once, and the
+  audit log records it as `outbox.dead_letter_replayed`. It works for the
+  thirty days a dead letter is kept, after retention has purged the
+  cancelled message. See `docs/ops/dead-letters.md`.
+- **Admin audit viewer.** Filters by actor, action, target, correlation id
+  and a UTC date window, and pages to older entries with a stable keyset
+  cursor (ADR 0079). A filter value of the wrong shape is a 400 naming the
+  field; a target id that was not a UUID used to be a 500.
+- Add `script/bootstrap-deps --rebuild-local` to rename an incomplete or
+  foreign-Perl `local/` to `local.rebuild.<epoch>` before Carton reinstall
+  (still never `rm -rf local/`). Helps operator hosts where a
+  partial `local/` leaves modules like `Const::Fast` missing.
+- Add operator `script/staging-host-verify` / `bin/gpforum-staging-host-verify`
+  and `docs/ops/staging-host.md`: non-destructive staging bring-up verify
+  (in-repo deploy/runbook artifacts; optional `--env-file` key presence with
+  values redacted, `--systemd` `is-active`, `--base-url` health/metrics).
+  Documents the evidence archive commands for mail-check, stress-load, and
+  staging drills. Wired into `docs/ops/private-beta-checklist.md`. Optional
+  `make staging-host-verify`; not part of default CI. Does not install units
+  or claim private-beta readiness.
+- Add `script/gpforum-macports-env` for macOS MacPorts operators: detect
+  `/opt/local` PostgreSQL client bins, print `export PATH=...` lines, and
+  optionally verify `psql` / `pg_dump` / `pg_config`. No-op skip on Linux CI.
+  Accept MacPorts `/opt/local` perl as system Perl in
+  `script/gpforum-system-perl` (still refuse perlbrew / plenv / asdf).
+- Add operator-runnable `script/gpforum-mail-check` / `bin/gpforum-mail-check`
+  to prove identity mail config for `test` / `smtp` / `sendmail` transports
+  (dry-run Test delivery, SMTP TCP probe without leaking passwords, sendmail
+  binary check, optional `--send`). Document in `docs/ops/mail-check.md` and
+  `docs/DEPLOYMENT.md`. Optional `make mail-check`; not part of default CI.
+- Add operator-runnable `script/stress-load` / `bin/gpforum-stress-load` with
+  profiles `smoke` / `100` / `500` / `1000` concurrent request slots against a
+  running Hypnotoad/Good Phorum `--base-url`, JSON/human evidence, and
+  `docs/ops/stress-load.md`. Optional `make stress-load` /
+  `make stress-load-dry`; not part of `make check` or default CI.
+- Add `script/staging-drill` / `bin/gpforum-staging-drill` and
+  `docs/ops/staging-drills.md` so operators can rehearse fresh migrate,
+  upgrade-from-previous, and `pg_dump`/`pg_restore` on throwaway databases
+  with pasteable pass/fail evidence. Attachment files under
+  `var/attachments` remain outside the dump/restore scope; full
+  nginx/systemd deploy stays a manual runbook. Optional `make staging-drill`
+  is documented and is not part of default CI.
+- Authors can restore their own soft-deleted thread on
+  `POST /t/:thread_id/restore`. The store clears `deleted_at`/`deleted_by`
+  and emits `thread.undeleted` in one transaction. Search, feed, cache, and
+  realtime treat it like a visible thread again. Reputation does not apply
+  `thread.restored` credit. The author still sees the deleted thread on the
+  category listing and thread page. HTML writes set a success flash and
+  redirect to the thread. JSON returns `restored`. Live, hidden, locked, and
+  foreign threads are rejected.
+- Authors can restore their own soft-deleted post on
+  `POST /p/:post_id/restore`. The store clears `deleted_at`/`deleted_by`
+  and emits `post.undeleted` in one transaction. Search, feed, cache, and
+  realtime treat it like a visible post again. Reputation does not apply
+  `post.restored` credit. HTML writes set a success flash and redirect to
+  the post permalink. JSON returns `restored`. Live, hidden, locked, and
+  foreign posts are rejected.
+- Authors can soft-delete an attachment linked to their visible post on
+  `POST /p/:post_id/attachments/:attachment_id/delete`. The store writes
+  `attachment.deleted` in one transaction. Already-deleted rows replay.
+  HTML writes set a success flash and redirect to the post permalink.
+  JSON returns `deleted`. Non-authors receive `403`.
+- Members can mark the whole notification inbox read on
+  `POST /notifications/read-all`. HTML writes set a success flash and
+  redirect to `/notifications`. JSON returns `all_read` with
+  `marked_count`. An empty inbox is success. JSON single-row mark-read is
+  unchanged.
+- Public SSR pages at `/legal/terms`, `/legal/privacy`, and `/legal/cookies`
+  describe how this software handles terms, stored data, export/deletion,
+  and cookies. The footer links them. The sitemap includes the three URLs.
+  Copy is i18n catalog text, not counsel-reviewed instance policy.
+- Moderators can hide and restore a whole thread on
+  `POST /moderation/threads/:thread_id/hide` and
+  `/restore`. `thread.hidden` removes the thread search document, post
+  search documents in that thread, and feed rows, and applies a reputation
+  penalty to the thread author. `thread.restored` reindexes, reprojects the
+  feed, and restores the penalty. Hide keeps `locked_at`. HTTP writes mint
+  `command_id` like lock/unlock.
+- A lost HTTP response can be retried with the same `command_id`. Reply,
+  thread, report, hide, and export return the original resource and do
+  not insert a second row.
+- Authors can move their own threads to another category.
+  `PostingWorkflow->move_thread` updates `category_id`, increments version,
+  and emits `thread.moved` with the previous category. Locked, hidden,
+  deleted, foreign threads, and missing destinations are rejected.
+  `POST /t/:thread_id/move` is CSRF-protected, rate limited, and idempotent
+  via `command_id`. Search reindexes, cache invalidates both categories,
+  and realtime `thread.update` fires; feed, reputation, and notifications
+  do not.
+- Authors can soft-delete their own threads. `PostingWorkflow->delete_thread`
+  stamps `deleted_at`/`deleted_by`, increments version, and emits
+  `thread.deleted`. Locked, hidden, already-deleted, and foreign threads are
+  rejected. `POST /t/:thread_id/delete` is CSRF-protected, rate limited, and
+  idempotent via `command_id`. Search removes the thread document and post
+  documents in that thread, feed removes the thread item and post items,
+  cache invalidates, and realtime `thread.update` fires; reputation and
+  notifications do not. Moderation hide remains a separate
+  `moderation_state` path. HTML clients redirect to the category.
+- Authors can edit their own thread titles. `PostingWorkflow->edit_thread`
+  updates `title`/`slug`, increments version, and emits `thread.updated`.
+  Locked, hidden, deleted, and foreign threads are rejected.
+  `POST /t/:thread_id/edit` is CSRF-protected, rate limited, and idempotent
+  via `command_id`. Search, cache, and realtime `thread.update` consume the
+  event; feed, reputation, and notifications do not fire again.
+- Authors can soft-delete their own visible posts. `PostingWorkflow->delete_post`
+  stamps `deleted_at`/`deleted_by`, decrements the thread reply counter, and
+  emits `post.deleted`. Locked threads, hidden posts, already-deleted posts,
+  and non-authors are rejected. `POST /p/:post_id/delete` is CSRF-protected,
+  rate limited, and idempotent via `command_id`. Search, cache, feed, and
+  realtime `thread.update` consume the event; reputation and reply
+  notifications do not fire. Moderation hide remains a separate `post.hidden`
+  path.
+- Authors can edit their own visible posts. `PostingWorkflow->edit_post`
+  appends a `post_bodies`/`post_revisions` pair, points the post at the new
+  revision, and emits `post.updated`. Locked threads, hidden/deleted posts,
+  and non-authors are rejected. `POST /p/:post_id` is CSRF-protected, rate
+  limited, and idempotent via `command_id`. Search, cache, feed, and
+  realtime `thread.update` consume the event; reputation and reply
+  notifications do not fire again.
+- Wired `FeedProjector` and `ReputationLedger` onto the existing outbox
+  worker path. Created posts and threads now project into `/feed` for the
+  author and thread subscribers, and posting, hide/restore, and suspension
+  events update trust snapshots instead of leaving them at registration
+  defaults.
+- Added a oneshot `gpforum-scheduled-jobs` command, hourly systemd timer,
+  and launchd sample so expired sessions, rate-limit buckets, identity
+  tokens, completed outbox rows, and dead letters are deleted in bounded
+  batches. The same run calls attachment orphan cleanup and
+  `PartitionLifecycle` policy/evidence only (no app-owned
+  `CREATE TABLE ... PARTITION OF`). See `docs/ops/scheduled-jobs.md`.
+- Forum post bodies labeled `markdown` now render a safe subset (emphasis,
+  http/https/mailto links, quotes, fenced code) through
+  `Service::Forum::BodyRenderer` at compose time and in post presenters.
+  Source is escaped before markup is added, so script tags and unsafe URLs
+  stay text.
+- Delivered private-beta identity mail for password reset, email change,
+  and registration verification through an injectable `Email::Sender`
+  mailer. Pending accounts no longer receive a session until the
+  verification token is confirmed, and the login page links to forgot
+  password. `Email::Address::XS` 1.05 is a declared runtime pin so
+  `Email::Sender::Simple` can load.
+- Added versioned operational profiles for development, staging,
+  production-small, and production-medium, plus a partition lifecycle policy
+  for monthly planning, retention detach, archival states, and restore
+  evidence.
+- Added public discovery and syndication boundaries for canonical URLs, safe
+  metadata, robots.txt rules, sitemap entries, feed items, and architecture documentation.
+- Added privacy rights operation boundaries for deletion requests, erasure jobs,
+  retention legal holds, staff review, and DBIx::Class mapping coverage for the
+  existing platform governance tables.
+- Added plugin extension boundaries for manifest validation, registry
+  lifecycle, named hook dispatch, observable failure recording, and PostgreSQL
+  migration coverage.
+- Added import/export portability boundaries for validated import manifests,
+  dry-run jobs, legacy id mapping, import failure reporting, privacy-aware
+  export manifests, and PostgreSQL migration coverage.
+- Added admin authorization management boundaries for role catalogs, scoped role
+  bindings, permission review, and audit-backed role changes.
+- Added moderation review boundaries for reports, reversible moderation actions,
+  suspensions, audit-backed moderation changes, and admin audit browsing.
+- Added advanced community feature boundaries for mention extraction,
+  bookmarks, reputation ledger events, trust score snapshots, and rebuildable
+  user feed projections.
+- Added operations hardening boundaries for rate limiting, metrics snapshots,
+  runbook validation, runtime sizing validation, and a JSON metrics endpoint.
+- Added attachment upload intent, validation, lifecycle persistence, links,
+  variants, scanning hook, media processing hook, and PostgreSQL migration.
+- Added bounded keyset pagination contracts for category thread lists and
+  thread post lists, including limit-plus-one fetching, stable cursors, and
+  pagination metadata.
+- Added process-local realtime websocket boundaries for authenticated
+  connections, authorized channel subscriptions, thread updates, notification
+  badge broadcasts, and explicit polling fallback.
+- Added PostgreSQL-native search service boundaries for document building,
+  indexing, rebuild, permission-aware querying, autocomplete, lag observation,
+  and worker handoff.
+- Added notification subscriptions, preferences, inbox projection, read state,
+  and fanout services.
+- Added worker phase boundaries, outbox dispatch, projection tracking, and
+  platform governance migrations.
+- Added core identity/session, forum write, event/audit, and projection schema
+  foundations.
+
+### Changed
+
+- **The pages follow Apple's Human Interface Guidelines.** Text is set in
+  the platform's face (San Francisco on Apple devices, Inter elsewhere) on
+  the platform's text styles; lists are grouped on rounded white surfaces
+  with inset hairlines; the bar is translucent and stays at the top, its
+  search a filled field; actions are pills in one tint; the dark theme is
+  the system's on black. Links and the labels of filled controls keep 7:1
+  contrast. A thread's actions sit on one line with Reply first, its
+  reactions show no zero counts, and the home page's categories read as a
+  sidebar with their counts.
+- **An installation is called by its own name.** No page shows the
+  software's name, mark or licence: the header shows the forum's name, the
+  browser icon is drawn from its first letter (`/icon.svg`), and the legal
+  pages speak of the forum, not the software.
+- **Search walks the newest documents for a common word, and a search in a
+  thread reads only that thread (migration 1058).** The check that a
+  document is still in its thread's category was estimated at 0.5%, so a
+  word most documents hold looked rare and the planner read and sorted
+  every match; on 400,000 documents a common word took 2.3 to 3.7 s and
+  now takes 20 to 60 ms, with the same results. A search in one thread
+  read every match in the forum and kept the thread's (919 ms for a
+  one-post thread); it now starts from the thread's posts (1.7 ms), and a
+  20,000-post thread costs about 170 to 210 ms whatever the forum's size.
+
+- **Search understands Italian (migration 1057).** Documents and queries
+  used the `simple` configuration, every word as written: "compilazione"
+  missed a post that said "compilato", "citta" missed "città". They now
+  use `public.gpforum_italian`, PostgreSQL's Italian stemmer and stopwords
+  with `unaccent` first, so a word's forms share a stem and accents fold;
+  Mojolicious or PostgreSQL stay as written. `Search::DocumentBuilder`
+  names the configuration once: the indexer now passes it to the database,
+  as the searcher always did. On 200,000 generated Italian documents a stem
+  family matches two to four times the documents it did.
+
+- **A thread's counter is its reply count, and a failed outbox message
+  writes its attempt count once (migrations 1052 and 1053).** The counter's
+  visible reply count, last post, last activity, version and reconciliation
+  time were written when the thread opened and when a transfer recounted
+  it, never by a reply, and read by nothing: after the first reply the last
+  post was still the opening one. `outbox_messages.attempts`, the old name
+  of `attempt_count`, took the same number on every failure. Nothing writes
+  or reads them since 1052, and 1053 drops them, a release later (ADR 0126,
+  section 2). `projection_generations`, which nothing ever wrote and nothing
+  has read since 1048, is gone.
+
+
+- **A password is hashed and verified as its UTF-8 octets, and nothing
+  else.** The Latin-1 path for hashes made before the salt carried an
+  encoding marker goes, and the marker with it: no released database holds
+  such a hash (ADR 0150 refuses every 0.x database), and a hash made with
+  the marker still verifies.
+
+- **A notification fan-out page is twenty recipients.** Each recipient
+  opens up to three subtransactions that write, and two hundred opened six
+  hundred, past the 64 PostgreSQL caches a backend: every other backend's
+  snapshot overflowed into pg_subtrans until the page committed.
+
+- **The sitemap is built once an hour, not on every request.** Each page
+  materialized and sorted every public category and thread; the index and
+  the pages are cached, and dropped when moderation or a category changes
+  what is public. A page past the last one is a 404 instead of an empty
+  document.
+
+- **The hourly orphan purge reads an index (migration 1050)**, where it read
+  every attachment to find a handful of stale intents.
+
+- **An attachment download plans nothing (migration 1048).** Its three or
+  more point lookups, and the moderation store's, were planned on every
+  call: 0.023 ms a file lookup against 0.006 planned once, 0.021 a post's
+  against 0.005.
+
+- **A member's public counts are read once a minute at most.** The profile
+  counted every public thread and reply of the member, through three joins
+  each, on every view; the counts are cached, and dropped when the member
+  posts, deletes or restores, or when moderation changes what is public.
+
+- **Ten indexes no statement read are gone (migration 1048)**, each a write
+  on every token, second factor, ban, avatar, rate-limit check, event,
+  command or dead letter: the plan gate now requires 22. The console's
+  member list, filtered by status, reads the index built for it, where a
+  generic plan of a folded filter could not.
+
+- **A filtered audit page reads its filter's index (migration 1047).** The
+  page folded every filter into one statement planned once, so an actor's
+  or a correlation's entries walked the whole trail backwards, every
+  partition, until a page matched. It is planned for the filters it has.
+
+- **A member's digest and their first message to someone no longer wait
+  for each other (migration 1047).** They took the same advisory lock;
+  each lock class is now for one purpose, listed in the migration and held
+  by t/641.
+
+- **The forum's writes and the viewer's resolution call implementations
+  only (migration 1046).** Four of them called the previous release's
+  owner-rights boundaries, so the contract migration that drops those would
+  have broken every signed-in request and every post, and each fan-out
+  candidate paid two calls it did not need.
+
+- **The signing sweep reads each batch from where the last one stopped
+  (migration 1046).** Its first page was folded into the bound as
+  `p_after IS NULL OR`, which a generic plan cannot use: every batch of
+  `gpforum sign-posts` walked the bodies from the start.
+
+- **An erasure no longer holds the threads its member voted in against
+  replies (migration 1046).** It locked them FOR UPDATE to its end, where
+  the poll's row lock keeps the counts right, as for a vote.
+
+- **The hourly retention sweep keeps up.** Each purge took one batch of
+  100 rows a run, while rate-limit buckets come at one per reader, action
+  and minute: the table grew without end. A purge now takes batch after
+  batch until one comes back short, at most 50 a run.
+
+- **A refused request past the limit costs no audit row after the first.**
+  Every refusal wrote a chained audit row behind the one `rate_limit` lock;
+  the first refusal of a window is audited and the rest counted.
+
+- **An anonymous `/health/ready` answers from a report two seconds old at
+  most.** The whole check is some twenty statements, a clamd round trip
+  and a GlifiStore ping, for one status word, on an endpoint open to
+  anyone; an operator with the token still gets a fresh report. A
+  `/metrics` scrape and a published invalidation no longer ping the
+  database first.
+
+- **A changed password is hashed before the credential's lock.** Argon2 ran
+  under the lock, so a sign-in of the same member waited for it. A reset
+  still hashes under the lock: its token is checked in that transaction,
+  and hashing first would spend Argon2 on every invalid token.
+
+- **The realtime backstop poll and the outbox gauges are cheap (migration
+  1044).** Every web process with a socket open polls the outbox once a
+  second, and its keyset was planned again each time: 0.052 ms a call, 0.006
+  planned once, on the same partial index. The gauges `/metrics` reports
+  counted every row of the outbox, seven days of delivered messages
+  included, on each scrape: 12.5 ms on 200,000 delivered messages, 0.2 ms
+  counted from the indexes that hold each gauge's rows.
+
+- **A thread's activity bump writes only when it moves.** A repeated
+  delivery, or a reply older than the last one, wrote the thread's row
+  unchanged -- a non-HOT update of a row the lists' indexes carry -- and said
+  it had moved it.
+
+- **The home and category thread lists are planned once (migration 1043).**
+  Both forced a custom plan, so every home page and every category page
+  planned its list again: on 100,000 threads, per call, 0.354 ms against
+  0.078 generic for the latest list and 0.426 against 0.179 for the
+  category list. The generic plans read the same indexes, because the
+  partial indexes' predicates are literals in the bodies; the viewer's
+  standing stays a filter on the scan, as it was. Bodies unchanged;
+  `forum_list_categories` keeps its custom plan (its count's predicate on
+  thread visibility depends on the standing, and the list is cached per
+  standing). The plan gate discards the session's cached plans before each
+  capture: a function planned once kept the plan the gate's own forced pass
+  had made with sequential scans disabled, and the next endpoint's first
+  page ran it, so its deep page read a small table another way and the gate
+  reported a growth that was its own. `t/integration/postgres-sql-function-plans.t`
+  replaces the list versions the catalogue reaches, not v1.
+
+- **A vote on a thread's poll no longer holds the thread against replies
+  (migration 1038).** The vote locked the thread's row `FOR UPDATE` for its
+  length, so a reply arriving meanwhile, which updates the thread's
+  activity, waited for it. The vote now takes the row `FOR KEY SHARE`, which
+  keeps the thread from being deleted under it and lets a reply through; the
+  poll's own row stays locked, which is what keeps two votes from counting
+  over each other.
+
+- **The mbox archive reads a page's signatures in one statement (migration
+  1041).** Each post's signature was a statement of its own inside the
+  export's repeatable-read transaction, a hundred per page of posts;
+  `api.forum_protocol_signatures_v2` answers a page at once, and each
+  envelope is still verified before the post is written.
+
+- **Two reads are planned once instead of on every call (migration 1042).**
+  `api.forum_find_listed_post` and `api.notification_list_inbox` forced a
+  custom plan although their plan never changes with the parameters: measured
+  on the hot-thread seed, 0.142 and 0.288 ms per call, now 0.013 and 0.070.
+  The list functions that filter by standing keep their custom plans: a
+  generic plan cannot use the partial indexes whose predicate depends on the
+  parameters.
+
+- **Three indexes no statement used are dropped (migration 1040):**
+  `idx_sessions_active` and `idx_sessions_lookup`, both led by the session
+  id, which the primary key answers, and `idx_user_feed_items_ranked`, an
+  order by score no feed reader asks for. Each was a write on every insert
+  and update of its table.
+
+- **The ordered autocomplete index stays out.** The 2026-10-23 review asked
+  for a btree behind the autocomplete's `ORDER BY`;
+  [the record](docs/architecture/sql-functions-optimization.md) shows it was
+  measured on 2026-10-11 and rejected for giving no stable improvement.
+
+- **The category index is cached for every reader, under their standing and
+  grants.** Only the anonymous list was, so each signed-in reader of the
+  index had every live thread of every category counted again for them
+  (`api.forum_list_categories` counts them per request). The list is now
+  cached under `categories:list:<standing>:<grants>:<limit>`: anonymous,
+  member or global reader, and a digest of the category and space grants,
+  so a member whose grants change reads under another key at once; the same
+  tags purge it (`categories`, `forum-index`), the same 30 seconds bound it.
+
+- **A picture's thumbnail is a real one.** The media processor wrote the
+  original's bytes under a second key as the `thumbnail` variant -- a copy
+  of every picture, which nothing read -- and decoded nothing. It now has
+  the system's image tool (ADR 0144) make a 320-pixel square of the picture
+  as PNG and records that; without an image tool, or for a picture the tool
+  cannot read, no thumbnail is made and the event is done.
+
+- **A login's per-account rate limit is keyed by the account, not its
+  spelling.** The limit under `account:<identifier>` gave an address and a
+  username of one member a budget each, so a guesser had two; the key is
+  now the account the identifier names (`AuthStore::account_id_for`), or the
+  spelling when it names none.
+
+- **Cache invalidation tells the sibling workers once per event.** The
+  outbox handler purged an event's three or four tags one by one, each a
+  NOTIFY statement (`TieredCache::invalidate_tags` carries them in one), and
+  every cache read pinged PostgreSQL first: the bus's take asked for the
+  schema's handle through `dbh`, which checks the connection with a round
+  trip; it now takes the handle as it stands (`Storage::with_handle`), and a
+  connection that is gone is heard again at the next statement.
+
+- **The files under a thread page's posts cost no statement of their own
+  (migration 1037).** Each file listed under a post was four statements --
+  its row, its links, the post the link names, the post's placement --
+  after the page's one statement had read the links: twenty-five posts with
+  a file each were a hundred statements, which the query budget never saw
+  because its seed had no files. The page's one statement
+  (`api.forum_thread_page_reads_v6`) now reads each link with its file and
+  its post, and the listing decides from that
+  (`DownloadAccess::listing_payload`); `api.attachment_post_files_v2`
+  answers the same rows for a page that reads them on its own. The budget
+  test seeds a file on each of the thread's first posts, so an N+1 on them
+  would fail it. Downloading a file still judges every link of it.
+- **A reply's notifications reach a thread's subscribers in four statements,
+  however many they are (migration 1036).** The outbox worker notified each
+  subscriber in turn -- the viewer, the delivery plan, the relation to the
+  actor, the two rows in a transaction of their own, the unread count and
+  the badge -- seven round trips per recipient, so a thread with a thousand
+  followers was 7,001 statements inside one outbox message, which could
+  outlive its lease and be claimed again by the next worker. The fan-out is
+  now the candidates with their plans, relations and viewer rows in one
+  statement (`api.notification_fanout_candidates_v2`), where the post sits
+  (as before), the deliveries in one call per page of 200
+  (`api.notification_fanout_deliver_v2`, each recipient in a savepoint of
+  their own, the mail queued with them, the unread count counted after the
+  rows so a count that fails leaves the delivery made) and the badges in one
+  NOTIFY statement (`api.ops_publish_notifications_v2`). Every rule stays
+  where it was: the readability of the post (ADR 0102) is judged in Perl
+  from the viewers the candidates carry, the plan is the preference store's,
+  the relation store says which kinds a relation silences (ADR 0130).
+  Measured on a scratch cluster: 1,000 subscribers took 7,001 statements and
+  3.15 s, now 8 statements and 0.32 s; 100 took 701 and 0.33 s, now 4 and
+  0.045 s; 10,000 take 53 statements and 3.1 s. `Service::Notification::Fanout`
+  is the module; `RecipientPolicy::notifiable_readers`,
+  `ViewerResolver::viewer_from_row`, `RelationStore::silenceable` and
+  `PgNotifier::notify_many` are the set forms the fan-out uses.
+
+- **The unread count a badge carries is planned once
+  (`api.notification_unread_count_v8`, migration 1036).** The count's
+  function forced a custom plan, so every call planned its three readability
+  subqueries again: 1.4 ms of planning for a count that runs in 0.05 ms
+  (1,000 calls: 1,416 ms, against 55 ms under a generic plan). That was most
+  of what a fan-out of a thousand still cost once its round trips were gone,
+  and 1.4 ms of the badge after every delivery and every mark-read. The body
+  is unchanged; the previous entry point stays for the preceding release's
+  workers.
+
+- **The audit chain is one chain per aggregate, linked at commit under that
+  aggregate's lock (ADR 0156, migration 1035).** Every audited write took
+  one forum-wide advisory lock to COMMIT and linked to a tip chosen by the
+  caller's `created_at`, so two writers with out-of-order stamps left a leaf
+  no row pointed to, and every write waited for every other. A row now takes
+  the next `chain_position` in its target's chain (`chain_key`,
+  `type:id`), under `pg_advisory_xact_lock` on that key alone; its
+  `record_hash` covers the stored form (UTC time with microseconds, jsonb
+  metadata), so a row read back verifies, and
+  `api.ops_audit_chain_verify_v2` reports a changed, missing or relinked
+  row. A caller's audit id is locked on its own. Rows from before the
+  migration keep their links and stay outside every chain. The four chain
+  functions are replaced in place, the one named exception to ADR 0126,
+  section 2.
+- **The outbox claim reads each half from its index (migration 1034).** The
+  claim's WHERE was an OR of the two predicates the partial indexes serve,
+  which no index can serve in order, so every claim scanned the table and
+  sorted every ready row for a page of 100: 104 ms and a 14 MB external sort
+  on 300,000 ready rows, growing with the backlog it was there to drain. Each
+  half is read in order from its own index and cut at the page, and the page
+  is locked with the readiness predicate restated, so a row another worker
+  claimed meanwhile is left out as before: 0.9 ms on the same rows.
+  `api.outbox_claim_ready_v4` (v3 inside); v2 stays for the previous
+  release's workers.
+- **The thread page renders faster.** Signed in, 13.2 ms to 11.0 ms a
+  request in-process (the hot-thread seed, 25 posts, 161 forms); anonymous,
+  6.4 ms to 5.6 ms. The reactions partial computes its eight texts once a
+  request and builds each form's path once; the posts partial builds the
+  page URL once; the i18n catalogue keeps each message's split template; the
+  structured data strips tags from the renderer's own HTML instead of
+  parsing 25 bodies with Mojo::DOM; the CSRF field is answered from the
+  stash without the token helper's lookups; a uuid is formatted with one
+  unpack. A password change verifies the new password against the current
+  one as text in constant time, where it ran Argon2 a second time under the
+  credential's lock.
+
+- **The schema starts from a 1.0 baseline (ADR 0150).** The 106 migrations
+  of the 0.x chain are 24 files numbered 1000 to 1023: the tables by area,
+  each created once in its final shape and commented (`COMMENT ON TABLE`),
+  the functions of `api` by area, each with a sentence that says what it
+  does, and every `SECURITY DEFINER` entry point in one file. Every table,
+  column, constraint, index, function, body and grant the code, the tests or
+  the operators use is unchanged, which a catalogue fingerprint of a
+  database built each way proves; what differs is listed, with why, in
+  [docs/architecture/migration-baseline-1.0.md](docs/architecture/migration-baseline-1.0.md):
+  - the 89 `api` functions nothing called (versions kept for a previous
+    release's workers) are gone, and so are 14 tables nothing read, the
+    counter-shard trigger and the six empty schemas of the first blueprint;
+  - `schema_versions` records who applied each migration and how long it
+    took, and `migration_safety` is gone;
+  - the 154 functions that answered with a table's row return a row type of
+    `api` with the same columns, and their bodies name them, so a column a
+    table gains changes no shipped function;
+  - four functions that read the clock are `VOLATILE`, five reads `STABLE`,
+    thirteen pure helpers `PARALLEL SAFE`.
+- **`gpforum migrate` refuses a database migrated by other code.** One that
+  records a migration the tree does not have -- the 0.x chain's, or a newer
+  release's -- is refused before anything runs, by `--apply` and `--check`,
+  with what to do; the runner no longer carries the 0.x exceptions (049 and
+  051 of several transactions, the gap at 120).
+- **Comments say why the code is as it is, not what it used to do.** About
+  fifty comments in `lib/`, `script/` and `deploy/` narrated a fixed defect
+  ("used to ..."); each now states the reason in the present, or goes when
+  the history was all it said.
+- **A page from the public cache is gzipped once, not for every guest.**
+  Each hit gzipped the same bytes again: 0.12 ms of the 0.87 a cached
+  thread page took. The gzipped bytes are kept by the page's ETag beside
+  the bytes they came from, and given again only for those bytes; at most
+  64 pages a process, in two generations (`GPForum::Bootstrap::Core`,
+  `t/704`). Gzip stays in the application, so every proxy, and none, gets
+  the same response (docs/PERFORMANCE.md).
+- **A thread page walks its posts once for the reader's forms.** The five
+  command id maps of a member's own posts (edit, upload, delete, report,
+  restore) each walked the page's posts again for them, and the likes, the
+  reply targets and the like forms each read the posts' ids again; the
+  page now reads them once each.
+- **An id costs 1.6 µs instead of 3.8.** `GPForum::Infrastructure::Id`
+  read ten random bytes with a read of its own for every id and built it as
+  a list of numbers; it reads 4 KiB at a time, dropped by a forked process
+  so no two processes hand out the same bytes, and sets the version and
+  variant in place. A signed-in thread page mints 28 (`t/143`).
+- **A function call costs a third less in Perl.**
+  `GPForum::Infrastructure::SqlFunction` ran each call through DBIx::Class's
+  `dbh_do`, which built a block runner, a Try::Tiny and a preserved context
+  for every call: 20 of a 64 µs call. It now takes the storage's handle as
+  `dbh_do` did, and outside a transaction tries once more on a new
+  connection when the connection was gone, as `dbh_do` did
+  (`t/integration/postgres-sql-function-reconnect.t`). A uuid parameter in
+  the shape PostgreSQL and Good Phorum write is read by one pattern before the
+  other spellings PostgreSQL accepts, half the cost for the 50 ids of a
+  thread page's reads.
+- **A signed-in thread page sends five statements instead of eleven.** The
+  reads it makes once it has its posts -- the likes, the posts they answer,
+  the tags, the attachment links, and a member's bookmark, subscription
+  and read state -- are one call, `api.forum_thread_page_reads_v2`
+  (migration 124), made before them; each store still asks for its rows
+  and takes them from that call's answer
+  (`GPForum::Service::Forum::ThreadPageReads`,
+  `GPForum::Infrastructure::SqlFunction::answering`). A guest's page sends
+  three instead of six. The seven reads took 615 µs as seven calls and 405
+  as one. The query budget test holds the thread page to 5 and 3.
+- **A database connection costs 27% less, and says which process made it.**
+  Every connection ran six statements after connecting; the PL/pgSQL block
+  that set `lc_messages` where the role may was 0.98 ms of a 3.6 ms
+  connection over the socket. One `SELECT` of `set_config` calls now sets
+  the session, and `application_name=gpforum-web` (or `gpforum-VERB`) and
+  `connect_timeout=5` travel in the startup packet unless the DSN sets them,
+  so `pg_stat_activity` tells the web processes from the workers and a
+  server that does not answer fails the connection in five seconds (ADR
+  0137, with the socket and TCP measurements).
+
+- **The hot pages render in 41 to 55% less time: the signed-in thread page
+  in 41% less, the home page in 55% less.** Every `include` went through
+  Mojolicious's renderer as a page does, 43 microseconds each and 62 on the
+  home page; `GPForum::Web::Partials` compiles each partial once and runs it
+  with the stash localized as `include` does, and a partial's plain
+  `t('key')` reads one escaped table a locale. Counted messages, time
+  elements, the theme contracts, the locale table and the selectors'
+  options are built once instead of on every question, and the post
+  fragment cache is keyed by its content and kept in two generations, with
+  the edit form's text out of it. `script/bench-render` measures the pages
+  in process with a signed-in session, with NYTProf on request; the HTML is
+  the same (docs/PERFORMANCE.md, "Rendering in process"; `t/694`-`t/696`).
+
+- **The drills and evidence tools that read no setting no longer read the
+  settings file.** `staging-drill-attachments`, `evidence-meta`,
+  `evidence-validate`, `dead-letter-check` and `mail-lifecycle-check` use
+  none of the service's settings, yet the front door read the host's file
+  before each of them: where it is `root:gpforum 0640` -- a CI runner, an
+  account that is not the service's -- they were refused with 78 before
+  starting. The verb table marks them `nothing` and the front door skips the
+  file for them, the one named with `--env-file` included, so the deploy
+  units workflow runs them without `--env-file /dev/null` (ADR 0120,
+  amended; `t/484`).
+
+- **`benchmark`, `hypnotoad-benchmark` and `hypnotoad-scaling` say a failed
+  run as one.** Every exception became misuse: the reason, the usage line
+  under it, status 2, so a database that did not answer or a refused seed
+  read as a mistyped command line. Misuse keeps the usage and 2; a failure
+  is said as itself and exits 1, or 78 for settings the command cannot use,
+  as the staging drill and ADR 0120's one command style have it (`t/681`).
+
+- **The index says what goes on in a category, and a reader who cannot
+  reply is told the way in.** Each category in the index and on the home
+  page carries how many discussions the reader may read in it and when the
+  last of them moved (migration 107, `api.forum_list_categories_v3`, one
+  aggregate per category over the index the category page reads; the
+  DBIx::Class list carries the same two columns). The home page's latest
+  discussions name their category and who started them, a pinned thread
+  wears a badge in every list, and the home page's header keeps one action,
+  starting a discussion, where it repeated the navigation's categories and
+  search. A thread page no longer hands a reader who is not signed in a
+  composer that cannot post: where the reply would be written stand the two
+  doors in, back to the thread. Under each post a signed-in reader can
+  quote it: `?quote=POST_ID` opens the reply with the post's source quoted
+  line by line under a line naming its author. The registration form says
+  what a username and a password must be and where to sign in; the login
+  form says where to create an account (`t/03`, `t/35`, `t/480`, `t/74`).
+
+- **`gpforum performance-seed` no longer seeds a production database it
+  read from the settings file.** As a `bin/gpforum` verb it reads the host's
+  settings file for every name the shell left unset, so on a production host
+  a bare `gpforum performance-seed` connected to the forum's own database and
+  inserted the synthetic benchmark dataset. A production configuration
+  (`GPFORUM_ENV=production`) is now seeded only where `GPFORUM_DATABASE_DSN`
+  was given for the seed -- in the shell, or by a caller such as the staging
+  drill, which names each throwaway database -- and is refused otherwise,
+  with the fix in one sentence: point `GPFORUM_DATABASE_DSN` at a scratch
+  database. `hypnotoad-benchmark --seed` and `hypnotoad-scaling --seed` seed
+  through the same check. A refusal, a setting the seed cannot use or an
+  unmigrated schema is now reported as itself, without the advice about
+  DBD::Pg meant for a failed connection (`t/681`).
+
+- **A registration is one call.** It ran as seven functions while Perl kept
+  the command log, a transaction and four savepoints around them, 24 round
+  trips. Migration 106 adds `api.identity_register_command_v1` -- the
+  command log, the duplicates, the user and the credential, the
+  registration's event and audit, the verification token with its audit
+  and mail, with the stores' recovery for a taken id -- and its ADR 0127
+  `_v2` boundary. Perl still validates, hashes the password, mints the
+  ids, reads the clock and draws the token, and hands every row and
+  document ready. A registration is the rate-limit check and one call. The
+  answers recorded are the Perl path's key for key (ADR 0126, section 5;
+  `t/integration/postgres-sql-function-identity-commands.t`, `t/653`). The
+  login keeps its transaction: the race tests pin the window in which it
+  holds the credential.
+
+- **A hot deployment keeps the metrics tokens the service accepted last.**
+  Hypnotoad's `USR2`, or a second `gpforum start --service`, started a new
+  manager from the environment the service started with: after a rotation
+  and its `--finish` it did not follow the environment file, accepted the
+  dropped token and refused the current one until a restart. The manager now
+  carries the list it accepts in its own environment (ADR 0124, amended).
+
+- **Marking a thread read, bookmarking it and subscribing to it are one
+  call each.** Each ran its work as a function while Perl kept the command
+  log around it in a DBIx::Class transaction: a lookup, a savepoint, an
+  insert, the work, an update, `BEGIN` and `COMMIT`, 12 round trips a
+  request. Migration 104 adds `api.forum_read_marker_command_v1`,
+  `api.community_bookmark_command_v1` and `api.community_subscribe_command_v1`
+  (with their ADR 0127 `_v2` boundaries) and the command log's two shared
+  steps, `api.core_command_open_v1` and `api.core_command_close_v1`; each
+  request is its prologue and one call, 5 round trips, and the answer
+  recorded is the Perl path's key for key, so a response stored before
+  replays as it did (ADR 0126, section 5;
+  `t/integration/postgres-sql-function-thread-actions.t`, `t/652`).
+
+- **Search v6 selects custom plans on PostgreSQL 16–18.** Migration 102 keeps
+  the v3 query bodies and bounded payload loading, using static PL/pgSQL
+  implementations so the existing custom-plan policy takes effect on 16/17.
+  The maintained 20,000-document fixture uses the ordered 1,000-candidate
+  path; retained v2/v4 results, ACL checks and counts remain equivalent.
+
+- **Search loads result payloads after the page limit.** New ranked and
+  autocomplete v4 APIs preserve filtering, live placement checks, candidate
+  counts, rank and deterministic order while fetching body and author fields
+  only for the displayed page. Post edit, delete and restore now fetch their
+  post and readable thread context together, reducing those workflows from
+  three client calls to two while retaining the atomic write checks and locks.
+  The catalogue contains 195 operations; shipped functions remain immutable.
+  See the [optimization measurements](docs/architecture/sql-functions-optimization.md).
+
+- **Runtime data operations call stored PostgreSQL functions.** Forum,
+  identity, permissions, search, notifications, moderation, administration,
+  attachments, privacy, portability, plugins, outbox, projections, workers
+  and operational data access now use fixed, typed calls. DBIx::Class
+  remains the schema and transaction bridge. Functions live in versioned
+  SQL migration files and are installed once when migrations are applied.
+  The [conversion report](docs/architecture/sql-functions-performance.md)
+  maps the implementation and records the measured effect.
+
+- **Three OS settings that changed nothing are gone**:
+  `GPFORUM_OS_SENDFILE`, `GPFORUM_OS_STATIC_XSENDFILE` and
+  `GPFORUM_OS_WORKER_PRIORITY` only changed a mode, a flag and an action in
+  the reports, and nothing acted on them. An environment file that still
+  sets them is read as before, and they are ignored. The runtime evidence
+  calls static transfer `configurable` only when
+  `GPFORUM_ATTACHMENT_ACCEL_REDIRECT` names a prefix. The reports no longer
+  carry the retired affinity flag or the retired worker and realtime process
+  counts.
+
+- **No profile says whether GlifiStore is required**: the
+  `requires_glifistore` key, always 0 since GlifiStore became optional, is
+  gone from the operational profile in `/health/ready`, and ADR 0048
+  ("Mandatory GlifiStore L2 Cache") is marked Superseded.
+
+- **`script/antivirus-check`, `script/dead-letter-replay` and
+  `script/search-rebuild` are gone**: type `gpforum antivirus-check`,
+  `gpforum dead-letters` and `gpforum search-rebuild`.
+
+- **`gpforum setup` writes the decisions alone**: the ten settings an
+  installation decides, each under one line saying what it is, and the SMTP
+  lines commented out under the mail -- 41 lines where it wrote 258. A file
+  written before keeps its lines. `deploy/gpforum.env.example` lists every
+  setting, as before. **`gpforum doctor` says what the host sized the forum
+  for**, in English or Italian: `sized for 2 CPUs, 2 GB: 4 web processes,
+  4096 cache entries a process`. The operational profiles are three,
+  version 2 (`development`, `staging`, `production`), and each floor gives
+  way to what the host is sized for; `/health/ready`'s profile report no
+  longer carries worker, realtime or retention fields (ADR 0125).
+
+- **The README quick start is four commands**: the dependencies, `sudo
+  bin/gpforum setup --environment development` (without `sudo` on macOS),
+  `gpforum admin create` and `gpforum start --foreground`. `make
+  system-perl`, `script/system-preflight` and the `ln -s` onto the `PATH`
+  are gone: `bin/gpforum` checks its Perl, `gpforum doctor` the host, and
+  setup now links `gpforum` into Homebrew's `bin` on macOS when it is not
+  run as root, as it links it into `/usr/local/bin` as root. DEPLOYMENT's
+  systemd section no longer repeats the timers' `enable --now`, which the
+  install's one start line already gives.
+
+- **The README carries the production path**: the `apt` line, then eight
+  commands from the clone to a signed-in owner behind TLS on Debian or
+  Ubuntu -- the clone, `sudo /opt/gpforum/bin/gpforum setup`, the units into
+  place and started, the certificate, the nginx site into place and
+  reloaded, `admin create`. DEPLOYMENT's install drops `cd`, `make
+  install-deps-production`, the link, the copies and the `rm` of the
+  default site, and no longer sends mail over TLS to
+  `libio-socket-ssl-perl`, which the dependencies install.
+
+- **`gpforum service print --to` puts the files in place**: given the
+  directory the host reads them from -- `/etc/systemd/system`,
+  `/Library/LaunchDaemons`, `rc.d`, nginx's `sites-enabled` -- it writes its
+  own names there and touches nothing else, and the steps after it are the
+  reload and the start, one line under systemd (`daemon-reload &&
+  enable --now`) and one `launchctl bootstrap` for every plist. Any other
+  directory still holds only its files, to read before a `cp`. The nginx
+  site goes straight into Debian's `sites-enabled` (no link, and the default
+  site stays), and is refused before its certificate is there. The steps
+  begin with the packages a missing nginx, certbot or Caddy needs (`apt`,
+  `pkg`, `brew`) and, on FreeBSD and macOS too, the certbot command for the
+  forum's name; FreeBSD's site names certbot's `/usr/local/etc/letsencrypt`.
+  On macOS, `sudo gpforum setup` makes the `gpforum` account with `dscl`,
+  under the highest id below 500 that no user and no group has, and
+  `gpforum doctor` says when the services' account is missing.
+
+- **`gpforum setup` asks less and says more.** An answer typed at the
+  prompt replaces what the file has with no `Replace it? [y/N]` after it:
+  typing it was the say-so (an option, `--yes` and `--force` keep the
+  question or its refusal). Its `Then:` line offers `gpforum service print`'s
+  own first step, the files written with `--to` (`sudo gpforum service print
+  systemd --to ~/gpforum-systemd`), where a bare print wrote every unit to the
+  terminal first. A database it cannot use is said under the `database:`
+  label `gpforum doctor`'s line has, and the owner's step reads `gpforum
+  admin create --email EMAIL --username NAME`, a placeholder that does not
+  look runnable. `gpforum restore --check` given the directory of the backups
+  opens with `! manifest: DIR holds backups, and is not one itself`, then
+  offers the newest, where it opened with a `✗`. `make install-deps-production`
+  and `make install-deps-postgres` end with the command that comes next.
+
+- **The service files run `bin/gpforum` alone**, never `script/`: the web
+  unit checks the host with `gpforum os-preflight --strict --json` and starts
+  Hypnotoad with the new `gpforum start --service` (`--service --foreground`
+  under launchd and FreeBSD's daemon(8)); the outbox worker and the jobs run
+  `gpforum outbox`, `gpforum scheduled-jobs` and `gpforum partitions`. The rc
+  scripts and the crontab put `/usr/local/bin` on their `PATH`. Units copied
+  before keep starting; `gpforum doctor` says they differ from the release's
+  and prints them again.
+
+- **A metrics-token rotation needs no restart.** The running service reads
+  `GPFORUM_METRICS_TOKEN` and `GPFORUM_METRICS_TOKENS` from its environment
+  file again. It makes one `stat` per token check, and reads the file only when
+  it changed (ADR 0124). `gpforum secret rotate metrics` and its `--finish`
+  name no restart: rotate, give the scrapers the new token, finish. A file the
+  service cannot use keeps the tokens it accepted, and is logged once:
+  unreadable, malformed, writable by another account, or without a token.
+  `/metrics` never opens to anyone. The session secret keeps its restart.
+
+- `gpforum outbox`, `partitions`, `budgets`, `migrate --check` and
+  `scheduled-jobs` answer in sentences in the operator's language (the
+  `bin/gpforum-*` names keep their `key=value` lines; `--json` is unchanged).
+  Bare `gpforum budgets` checks, with a verdict. `gpforum partitions` refuses
+  a database the migrations have not reached. `gpforum secret rotate` on a host
+  without service files points to `gpforum service print`. Runbooks and the
+  guide type `gpforum` verbs; the install guide's account, directory, role,
+  database, template, secrets and migrate steps are now `sudo gpforum setup`.
+
+- `gpforum outbox` (`gpforum-outbox-dispatch`) prints `acknowledged=` and
+  `lost=` after the four counts it printed, and `--json` carries them: the
+  messages written `done`, and the claims another worker took before this
+  one wrote the outcome. `lost` was in the dispatcher's summary since each
+  claim is renewed on its own, but the command dropped it, so a batch that
+  lost messages to another worker read as one that delivered them.
+
+- **The last per-request statement of the thread page is prepared, and a
+  post's row is read in one step.** The attachments of a page's posts were
+  the one statement DBIx::Class still built on every request (an IN list
+  of the page's post ids); `PreparedQuery` now binds a list once per
+  element, kept by page size, so the page's eight statements are all
+  prepared. A post's fifteen columns are read with one `get_columns`
+  instead of fifteen dispatched `get_column` calls. The search page's
+  "more results" link writes its parameters in one order, so the page is
+  the same bytes on every render. ADR 0121.
+
+- `GPFORUM_SMTP_TLS=starttls|implicit|off` replaces `GPFORUM_SMTP_SSL`, which
+  is still read and logged with its replacement. Staging and production refuse
+  a `GPFORUM_PUBLIC_BASE_URL` or `GPFORUM_MAIL_FROM` under the reserved example
+  domains or `.invalid`, and production refuses `GPFORUM_MAIL_TRANSPORT=test`.
+  `GPFORUM_FORUM_READ_RATE_LIMIT` is a validated setting shown on
+  `/admin/settings`; `GPFORUM_LOCAL_CACHE_MAX_ENTRIES` defaults to 4096, so
+  every profile passes readiness; the environment template states the quoting
+  rule; the settings page names both services to restart.
+
+- The front door keeps the operator on the file it read: every command it
+  offers carries `--env-file FILE`, the flag is accepted after the verb too,
+  and a setting the shell exports is reported against the shell, not the file.
+  `gpforum mail-check` prints sentences (`--json` for evidence);
+  `gpforum start --foreground` on a busy port says so and exits 1;
+  `gpforum secret rotate` keeps a previous secret only when the service could
+  have started with it, and warns when the file is readable by every account.
+  `gpforum doctor` warns about such a file too, counts claims a killed worker
+  left behind, tells a plain-HTTP port from a refused certificate, and
+  `doctor --upgrade` reports a missing module instead of dying on it. The
+  FreeBSD crontabs go through `bin/gpforum`, so cron reads the environment
+  file.
+
+- **A page renders in about half the time, byte for byte the same.** The
+  signed-in thread page (25 posts, 79 KB) went from 24.7 to about 14 ms in
+  process, the category page from 15.1 to about 12 and the home page from
+  17.5 to about 12, the anonymous cached page from 2.7 to 1.8; the HTML and
+  the headers of fourteen pages, anonymous and signed in, are unchanged. The
+  CSRF token is masked once per response rather than once per form (the
+  thread page has 33, and each mask opened `/dev/urandom`); formatted dates,
+  rendered post bodies, route paths and asset URLs are kept once computed;
+  a plain message is read from the i18n table in one step; the viewer's
+  read state, bookmark, subscription and session are looked up through
+  prepared statements. Responses are gzipped at zlib level 3 through
+  `Compress::Raw::Zlib` (0.7 ms for the thread page where level 6 through
+  `IO::Compress::Gzip` took 1.6; 900 bytes more on the wire). ADR 0121.
+
+- `gpforum staging-host-verify --env-file` checks every setting in the file
+  as the service checks them at its start -- the checks `gpforum doctor`
+  reports -- under the file's `GPFORUM_ENV`, else `production`: it passed a
+  file that set its four keys, and the service then refused to start. Each
+  problem is in the evidence as its variable and sentence, without the
+  value of a secret.
+
+- The visual identity is now a text-free symbol: two open arcs and one amber
+  node, with light and dark SVG variants and a tighter favicon crop. The
+  README keeps its hero and presents features and setup more concisely,
+  with CI, runtime and license badges.
+
+- `make system-perl` and `script/system-preflight` end with a verdict, in
+  Italian or English: a check mark or a cross for the Perl, Carton,
+  pg_config, whether the dependencies are installed and, once they are,
+  what os-preflight finds, each problem with its fix, then a count;
+  `make system-perl` also names the next step. `perl -V` is printed only by
+  `script/gpforum-system-perl --preflight --verbose`.
+  `system-preflight --help` prints its usage instead of running the check,
+  and a production install no longer fails it for lacking perlcritic, a
+  develop tool. A Perl the scripts refuse is said with the command that
+  installs one on this operating system, and misuse exits 2.
+
+- `gpforum migrate` brings the database up to date in one command: the
+  migrations, the partition window and the endpoint query budgets, so a
+  fresh install's `/health/ready` is ok without a step of its own. It says
+  so in one line, then the next step: the forum's owner when it has none, a
+  restart after a change in staging and production, `gpforum start
+  --foreground` in development. `--plan` (or `--dry-run`) lists the pending
+  migrations from the database; `--quiet` prints nothing unless something
+  failed. `bin/gpforum-migrate` is its alias and still plans without
+  `--apply`.
+
+- A command line a command cannot read is answered with what was wrong
+  first -- "--aply is not an option of this command.", "--limit takes a
+  whole number above zero, not 'ten'." -- and the usage once, in the
+  operator's language; `admin-bootstrap` printed its usage twice and no
+  reason. Through the front door, help and failures name the verb typed
+  (`gpforum partitions`), not the `bin/` entrypoint. A configuration report
+  ends with the environment file the command read, where it named the
+  template.
+
+- `gpforum antivirus-check` without clamd says so once -- "clamd does not
+  answer at" its socket, and the operating system's reason -- where it
+  repeated one connect error eight times, and follows it with the commands
+  that install clamd and start it on this host (apt and systemctl, pkg and
+  sysrc, or Homebrew) and `GPFORUM_ANTIVIRUS=none` as the alternative. Old
+  signatures come with the command that starts freshclam, and scanning
+  turned off is a warning once deployed. In Italian or English.
+
+- `gpforum mail-check --human` says what a dry run proved and what it did
+  not: a sendmail program found shows "a program is there, not that mail
+  leaves this host", and an SMTP port that answers is not a server that
+  takes the message; each is followed by the `--send --to` command that
+  proves delivery. Deployed with sendmail, it adds that a VPS often cannot
+  send on port 25 and needs SPF and a PTR record, so relay through a
+  provider's SMTP. A failure names the fix: a mail server to install, or the
+  smtp settings and where to set them. `docs/ops/mail-check.md` says the
+  same, lists the `log` transport and gives development's default as `log`.
+  The `key=value` lines are gone; `--json`, still the default, is unchanged.
+
+- `gpforum os-preflight` speaks in sentences, in Italian or English: a
+  check mark for the host, its web processes and its open-file limit, `!`
+  for a warning and a cross for a failure, each problem with a `Fix:` line
+  that names the setting and where to set it (or the unit's
+  `LimitNOFILE=`), and a closing count. It no longer reports the retired
+  worker and realtime process counts. A script that read its `key=value`
+  lines reads `--json`, which keeps the whole report; each check that is
+  not ok now carries the `key` and `parameters` of its sentence. Under
+  `--strict --json`, what the service files run before a start, stderr
+  carries the same lines for the journal, and settings that do not parse
+  are reported there once: the JSON says `fail` with the problems'
+  sentences as its `error` and the `variables` they name, where it used to
+  write the whole report three times.
+
+- The README quick start reaches a signed-in administrator on a laptop
+  without a mail server: the outbox worker, run once, prints the
+  verification link the `log` transport writes. `docs/DEPLOYMENT.md`
+  describes GlifiStore as the optional shared cache it now is.
+
+- `deploy/gpforum.env.example` is the environment file to copy: the ten
+  settings every installation decides, uncommented with a one-line comment
+  each and a production example (a secret with the command that generates
+  it), then every other setting by section, commented out at its default.
+  It is generated from `GPForum::Config`'s settings table, and t/463 fails
+  when the two differ; values a shell would split, such as the DSN, are
+  quoted.
+
+- Production never sends the `X-GPForum-DB-*` benchmark headers, even with
+  `GPFORUM_BENCHMARK_QUERY_HEADERS=1` left in its environment: they told
+  every client how many queries each page ran. Development and staging
+  benchmarks keep them.
+
+- A configuration Good Phorum cannot use is reported whole: every problem at
+  once, each naming the variable to set with an example (a line to paste
+  into the environment file, quoted when it holds a space), a "did you mean"
+  for a mistyped choice or the command that generates a secret, then where
+  to set them, ending in a newline. `bin/gpforum` and the service exit 78
+  (EX_CONFIG) instead of 255, in Italian or English as `LC_ALL`,
+  `LC_MESSAGES` or `LANG` asks (owner decision D13); the `bin/gpforum-*`
+  commands print the same report, in the same language, and exit 1. The command line's words
+  are a catalog of their own, `locale/cli/en.po` and `it.po`.
+
+- `GPFORUM_WEB_PROCESSES` defaults to `auto`: as many web processes as the
+  CPUs carry under `cap-to-cpu` (`GPFORUM_RUNTIME_MAX_WEB_PER_CPU` a CPU), at
+  most 16. A number is still taken as it is. An operational profile's web
+  floor is what the host carries when that is less than the profile's.
+
+- GlifiStore is optional in every environment (owner decision D2): without
+  `GPFORUM_GLIFISTORE_URL` each process keeps its own cache, and readiness's
+  `shared_cache` check is `ok` with a note saying so. Development no longer
+  assumes one at `tcp://127.0.0.1:7379`.
+
+- Development's mail transport is `log` (owner decision D7): each message,
+  link included, is written to the log -- standard error for the outbox
+  worker -- instead of sent, so the README quick start verifies an account
+  on a laptop without a mail server. `test` stays the test suite's, and
+  `mail-check` knows `log`.
+
+- A boolean setting reads `on`/`off`, `yes`/`no`, `true`/`false` or `1`/`0`.
+
+- `GPFORUM_WORKER_PROCESSES`, `GPFORUM_REALTIME_PROCESSES` and
+  `GPFORUM_OS_AFFINITY`, which had no effect, are retired: still read but
+  never refused, so an old environment file starts whatever it holds for
+  them, and the start logs one line for each that is set, saying to remove
+  it. Readiness no longer holds the worker and realtime counts to the
+  operational profile's floors, which failed production-medium once they
+  were removed. `docs/DEPLOYMENT.md#retired-settings` lists them, and the
+  guides no longer show them, nor a GlifiStore every host must run.
+
+- A command that cannot use the database says so in one sentence, in
+  Italian or English as `LC_ALL`, `LC_MESSAGES` or `LANG` asks, naming the
+  setting to correct, the file the service reads it from and the command
+  that fixes it, instead of DBIx::Class's own text: `Cannot reach PostgreSQL
+  at 127.0.0.1:5432 (connection refused): start it with sudo systemctl start
+  postgresql, or correct GPFORUM_DATABASE_DSN in /etc/gpforum/gpforum.env.`
+  The same for a wrong password, a pg_hba.conf refusal, a host, role or
+  database that does not exist, and a schema not migrated. Under `--json`
+  the document's `error` keeps the original text and `explanation` carries
+  the sentence. Run by hand without the service's environment file on a host
+  that has one, the command adds `This command did not read
+  /etc/gpforum/gpforum.env, which holds the service's settings: run it as
+  docs/DEPLOYMENT.md shows.`, so a password refused for want of the file is
+  not mistaken for a wrong one.
+
+- `docs/DEPLOYMENT.md` opens with the whole install on Debian or Ubuntu, in
+  eleven numbered steps: packages, the `gpforum` user and who owns
+  `/opt/gpforum`, the database with its password, the environment file from
+  `deploy/gpforum.env.example` with its owner and mode, how to make a secret,
+  commands run as the service runs them, mail, antivirus, the units with the
+  outbox worker and both timers, the certificate and nginx, and the first
+  administrator. A production host installs with `make
+  install-deps-production` only. The README quick start creates the role
+  with `sudo -u postgres` and `--pwprompt`, as Debian needs.
+
+- `GPFORUM_ATTACHMENT_ACCEL_REDIRECT=/internal-attachments/` is documented:
+  nginx sends an authorized download itself. The guide used to say the
+  header was not implemented.
+
+- The FreeBSD rc scripts create `/var/log/gpforum` for the `gpforum` user
+  before they start.
+
+- `os-preflight --strict` stops a start only when a check fails, as
+  `os-preflight` without it always did; a degraded check is reported and the
+  service starts (owner decision D10). Under `--strict`, which the systemd
+  units and the FreeBSD rc script pass, each check that is not ok is also
+  written to stderr on a line of its own, such as `os-preflight: degraded
+  recommended_worker_count: recommended worker count below configured
+  threshold`, so the journal shows it outside the JSON report.
+
+- Errors Good Phorum raises now have classes (ADR 0118), and the outbox
+  classifies a failed handler by the failure type its class declares instead
+  of guessing from the message. An invalid argument, invalid configuration or
+  failed check (`GPForum::X::Argument`, `X::Config`, `X::Check`) is
+  `permanent`: the message is cancelled at once instead of retried. That
+  covers a search rebuild for an unknown entity type or stage, a breached
+  `QueryBudget->enforce`, and a handler built without a collaborator it
+  requires. A request over its query budget under
+  `GPFORUM_QUERY_BUDGET_ENFORCE=1`, outside the server profiles, fails with
+  `X::Check` too. A dependency that did not answer (`X::Unavailable`: clamd,
+  the scanner command, Minion, a reply fan-out that dropped a recipient) is
+  retried as `transport`, and its dead letter says so. Config, the cache
+  stack, Keyset, OS::Filesystem, Log, Migration::Plan, Migration::Runner and
+  MinionRegistrar raise these classes with their old messages; a migration
+  file edited after it was applied raises `X::Check`. An exception's text is
+  its message alone, so outbox `error_message`, log lines and an uncaught
+  startup error no longer end in " at FILE line N.".
+
+- The stores recover a unique conflict only on the constraint they expect,
+  asking `GPForum::X::Conflict->on`, and rethrow a conflict on any other
+  index; several used to take any unique violation for the one they expected.
+  Search documents accept their entity key or their primary key, which
+  PostgreSQL names first when the same entity is inserted twice.
+
+- Monthly partitions of `audit_log`, `event_log` and `notifications` roll
+  forward with the date (ADR 0113, amending ADR 0012). `bin/gpforum-migrate
+  --apply` creates the current UTC month and the next two after its
+  migrations, under the configured `statement_timeout`; `--no-partitions`
+  skips it, and a conflict or error exits 1 with the migrations applied. A
+  daily timer runs `bin/gpforum-partition-maintenance --apply` between
+  deploys; runs are serialised by advisory lock 4021970002, and one that does
+  not get it reports `skipped=1` and exits 0 (migrate waits up to a minute
+  first). Months are created with `CREATE TABLE ... (LIKE ...)` and `ATTACH
+  PARTITION`, which holds the parent only in SHARE UPDATE EXCLUSIVE: no
+  maintenance window. DEFAULT is still locked during each attach, so unpruned
+  reads, and the event and audit writes that start with one, wait at most a
+  0.5 s lock wait (retried five times) plus the scan of DEFAULT. Migration 049
+  drops the past, empty partitions migration 038 named, one table at a time,
+  keeping any that holds rows. The staging drill creates the window too.
+  Detaching and dropping old months stays manual.
+
+- ADR 0115 records that the translation catalogs are the gettext PO files,
+  read at startup and looked up by key (`msgctxt`); it amends ADR 0021. The
+  ADRs name the PostgreSQL integration tests that replaced the deleted store
+  tests, and `t/00-load.t` loads every module added since.
+
+- Removed `Attachment::UploadPipeline::cleanup_orphans`, which had no caller
+  and could not delete files in production; the purge is
+  `Attachment::Store::cleanup_orphans`, run by the scheduled jobs.
+
+- `GPFORUM_OS_WORKER_PRIORITY=on` reports the action `supervisor-nice` and
+  the policy `declared-for-the-supervisor`: nothing in Good Phorum calls
+  setpriority, the supervisor applies the nice value.
+
+- Translations are gettext PO files, `locale/en.po` and `locale/it.po`, which
+  Poedit, Weblate and gettext's tools can open; `docs/i18n.md` describes the
+  translator workflow. The catalogs are read once at startup, and a malformed
+  file stops the application naming the file and line. A message left empty or
+  marked fuzzy is shown in English (and reported to a `missing_key_logger`
+  when one is set; `t/295` keeps the shipped catalogs complete); for a counted
+  message one empty form is enough. Adding a locale also needs a migration that
+  widens `users_preferred_locale_check`.
+
+- The eight performance and database documents are now one,
+  `docs/PERFORMANCE.md`: budgets, indexes and the plan gate, keyset pages,
+  `CONCURRENTLY` migrations, query budgets, caching, search costs, profiling,
+  OS tuning, and how to reproduce the evidence, re-measured on 2026-10-03
+  (PostgreSQL 18.6, Perl 5.44). The old paths are gone; the May 2026 tables
+  stay in git history (`git show 0d0ec4a:docs/PERFORMANCE_EVIDENCE.md`). The
+  readiness check `query_budget_drift` points at
+  `docs/PERFORMANCE.md#query-budgets`, which also says what
+  `script/query-budget --sync` cannot fix: a stored budget for an endpoint the
+  catalog no longer has used to stay `extra` until its row was deleted by
+  hand; `--sync` now removes it (below).
+
+
+- **Notifications, attachments and community stores are tested on
+  PostgreSQL** (`t/integration/postgres-{notifications,attachments,community}.t`,
+  over 550 assertions) instead of fake ORMs; concurrent-write recovery is
+  tested against a real second connection. The fake had pinned two wrong
+  results (a removed bookmark still listed, one member's feed showing
+  another's items), now tested as correct.
+
+- **Search runs under its own statement timeout and ranks a capped set**
+  (quality program 8.10). `GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS` (2000) cancels
+  a slow search, which then shows a degraded page instead of holding a web
+  worker; `GPFORUM_SEARCH_CANDIDATE_LIMIT` (1000) ranks only the newest
+  matches, walked through a new index, and the page says when it did.
+  Migration 048 drops four partial search indexes no query could use
+  (checked on 134 statements, 670 plans). It is not concurrent: on a large
+  forum, apply it in a maintenance window.
+- **A large thread's search work is bounded**: removing it deletes its
+  documents 500 per transaction, title first; renaming, moving or restoring
+  it reindexes 500 posts at once and the rest as
+  `search.thread_posts_requested` outbox messages. The outbox dispatcher no
+  longer sleeps between full batches.
+
+- **Replies lock their thread with `FOR NO KEY UPDATE`.** A reader's first
+  "mark as read" on a busy thread no longer waits for the replies in flight;
+  replies are still numbered in commit order. The concurrent-reply test that
+  `docs/MVP.md` listed as required before go-live now exists.
+- **After a failed GlifiStore call, a process skips GlifiStore for 15
+  seconds**, invalidations and the readiness ping included, so a hung server
+  no longer stalls every request. `/metrics` shows `retry_after_epoch` and
+  `stats.skipped`.
+- **Deep pages read only the rows they show.** Every paged list (posts,
+  threads, profiles, bookmarks, mentions, feed, moderation and audit
+  history) bounds its sort column, which the index answers. Page 800 of a
+  50,000-post thread read 39,008 rows (5.7 ms); it now reads five (0.03 ms).
+
+- **A cached public page is served before its queries run**, and junk query
+  parameters no longer mint cache entries (quality program 8.2). Pages past
+  the first are not cached.
+
+- **Removing a thread from the feeds no longer scans them per post.**
+  `user_feed_items` could only be read by user, so each removed post read
+  the whole table; migration 047 indexes it by item, and a thread's posts
+  leave every feed in one statement.
+- **Feed fan-out is one statement.** A new post reached its thread's
+  subscribers with two statements each, in one ever longer transaction; it
+  now reaches all of them with one `INSERT ... SELECT FROM unnest(...) ON
+  CONFLICT` (8.7). 5,000 subscribers: 10,000 statements before, five now.
+- **The header fits a phone.** It holds the brand, the navigation and the
+  account links; the language and theme selectors moved to the footer's
+  Preferences group. Below 1100px it is two rows, with the navigation on one
+  line that scrolls sideways (110px tall on a 375px phone, from about 630px).
+  The header no longer shows the member's internal id.
+- Import job progress skips the row write when the stored counters already
+  match.
+- Plugin enable and disable skip the row write when status already matches.
+- Reputation events that do not change trust level do not restamp the user
+  row.
+- Attachment scanning skips the object read when the row is already clean
+  and available, or infected and quarantined. A failed scan still rereads.
+- Media thumbnail processing skips the object read and variant write when
+  the thumbnail already exists.
+- Query-budget schema sync skips the row write when max queries,
+  transactions, and notes already match.
+- Already-failed projection offsets and already-ready, active, or failed
+  generations skip the status rewrite.
+- Projection offset progress skips the row write when `last_event_id`
+  already matches.
+- Feed projection skips the `user_feed_items` write when created_at, rank,
+  and version columns already match.
+- Search reindex of an unchanged thread or post document keeps the original
+  `indexed_at` and does not rewrite the search row.
+- Password reset to the same secret still consumes the token and revokes
+  sessions, but does not rotate the credential.
+- Email-change request for the member's already-verified address does not
+  issue a token or queue mail.
+- Password change skips credential rotation when the new secret already
+  matches. Email-change confirmation skips the user restamp when the
+  address is already verified on that account. The token is still consumed.
+- Email verification confirmation skips the user restamp when the account is
+  already active and `email_verified_at` is set. The token is still consumed.
+- Post edit skips the new body, revision, version bump, and event/audit
+  rows when the current `source_hash` already matches.
+- Thread title edit and move skip the row write, version bump, and
+  event/audit/outbox rows when title and slug, or category, already match.
+- A thread read marker that does not advance the stored position keeps the
+  original `last_read_at` and does not rewrite the state or delta row.
+- Category update skips the row write, version bump, and event/audit/outbox
+  rows when title, slug, description, visibility, and position are already
+  the requested values.
+- Locale, theme, and notification-channel preference writes skip the row
+  update when the stored value is already the requested value. `updated_at`
+  is not restamped.
+- Bookmark and subscription save skip the row update when the target is
+  already active with the same note or preference. Restore of a deleted,
+  muted, or revoked row still clears those stamps.
+- A second logout of an already-revoked session keeps the original
+  `revoked_at` and does not restamp the row.
+- Hide, restore, lock, and unlock mint and require HTTP `command_id` and
+  replay from `command_log`. A lost hide, restore, lock, or unlock response
+  retried with the same key does not persist twice. Store unique `command_id`
+  remains the ActionStore guard. Command hashes include actor, target, and
+  reason only. Store and command-log failures return HTTP 503 without
+  leaking the exception.
+- Thread read-marker writes mint and require HTTP `command_id` and replay
+  from `command_log`. A lost `POST /t/:thread_id/read` retried with the same
+  key does not persist twice. Command hashes include actor, thread, and
+  position only. Store and command-log failures return HTTP 503 without
+  leaking the exception.
+- Assign, release, resolve, and reverse mint and require HTTP `command_id`
+  and replay from `command_log`. A lost queue or reverse response retried
+  with the same key does not persist twice. Command hashes include actor,
+  target, and resolution or reason only. Reverse store arity stays four
+  arguments. Store and command-log failures return HTTP 503 without
+  leaking the exception.
+- User suspend and suspension revoke mint and require HTTP `command_id`.
+  A lost suspend or revoke response retried with the same key replays from
+  `command_log` and does not persist twice. Command hashes include actor,
+  target, and reason only. `revoke_suspension` store arity stays four
+  arguments. Store and command-log failures return HTTP 503 without
+  leaking the exception.
+- Member thread, post, and profile reports mint and require HTTP
+  `command_id`. A lost report response retried with the same key replays
+  from `command_log` and does not insert a second row even when reason or
+  details would otherwise hash differently. Command hashes include reporter,
+  target, reason, and details only. Unique open/triaged reporter-target
+  rows remain the store-level guard. Store and command-log failures return
+  HTTP 503 without leaking the exception.
+- Admin catalog, binding, and category writes mint and require HTTP
+  `command_id`. A lost role, permission, attach, bind, revoke, or category
+  response retried with the same key replays from `command_log` and does not
+  persist twice. Command hashes include actor and target fields only. Store
+  and command-log failures return HTTP 503 without leaking the exception.
+- Thread bookmark and subscription writes mint and require HTTP `command_id`.
+  A lost bookmark, bookmark-remove, subscribe, mute, or unsubscribe response
+  retried with the same key replays from `command_log` and does not persist
+  twice. Command hashes include actor, target, and note or preference only.
+  Store and command-log failures return HTTP 503 without leaking the
+  exception.
+- Guest and signed-in HTML locale and theme selector writes set a success
+  flash and redirect to `return_to`. JSON is unused on those cookie
+  routes.
+- Marking visible posts read on `POST /t/:thread_id/read` sets a success
+  flash and redirects to the thread. JSON still returns the read-state
+  payload.
+- Registration, login, logout, password change, locale change, theme
+  change, settings notification preferences, password-reset request,
+  password-reset complete, email-change request, email-change complete,
+  verification resend, and verification complete mint and require HTTP
+  `command_id`. The same key replays from `command_log` without creating a
+  second pending account, opening a second session, revoking a session
+  twice, rotating a password twice, persisting a preference twice, issuing
+  a second token, or consuming a token twice. Registration command hashes
+  include email and username only. Login command hashes include the
+  identifier only. Logout hashes include `session_id` and `user_id` only.
+  Password-change hashes include `user_id` only, never the current or new
+  password. Locale and theme hashes include `user_id` and the chosen
+  value. Settings hashes include `user_id` and channel rows only. Token-
+  consume hashes include the token only, never a new password. Token
+  consume still uses `identity_tokens` uniqueness and `used_at` as the
+  store-level guard. Guest locale/theme cookie writes stay cookie-only and
+  omit `command_id`. Locale and theme on `POST /settings` mint their own
+  keys so they do not share the settings `command_id`.
+- HTML mark-read and attachment upload now set a success flash and
+  redirect. Mark-read lands on `/notifications`; upload lands on the
+  post permalink. JSON responses are unchanged.
+- Privacy HTML writes now set a success flash and redirect. Member
+  export and deletion land on `/privacy`; staff approve, hold, and
+  erasure land on `/admin/privacy`. JSON responses are unchanged.
+- Author HTML writes on forum now set a success flash and redirect.
+  Creating a thread or reply, editing or deleting a post or thread,
+  moving a thread, reporting, bookmarking, and subscribing land on the
+  thread, category, or profile page with the matching catalog message.
+  JSON responses are unchanged.
+- Staff HTML writes on moderation and admin now set a success flash and
+  redirect. Hide and assign land on `/moderation/reports`; role create lands
+  on `/admin/roles`; category create lands on `/admin/categories`. JSON
+  responses are unchanged.
+- A classified permanent outbox failure cancels and dead-letters on that
+  attempt. Cancelled rows are not claimed again. Operator review is
+  `docs/ops/dead-letters.md`.
+- `GPFORUM_MINION_ENABLED=1` fails closed when the Minion PostgreSQL
+  backend is missing or unreachable. `bin/gpforum-outbox-dispatch` skips
+  Minion and keeps draining the canonical outbox.
+- Write routes map store and command-log failures to HTTP 503
+  `service unavailable` without leaking DBI text. `create_reply`,
+  thread report, moderation hide, and privacy export share that
+  contract. Unexpected application errors still use HTTP 500.
+- App PostgreSQL sessions set `statement_timeout` (15s),
+  `idle_in_transaction_session_timeout` (10s), `lock_timeout` (3s), and
+  `application_name=gpforum` on connect. Override with
+  `GPFORUM_DATABASE_STATEMENT_TIMEOUT_MS`,
+  `GPFORUM_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS`, and
+  `GPFORUM_DATABASE_LOCK_TIMEOUT_MS` (0 disables that timeout).
+  `gpforum-migrate --apply` clears `statement_timeout` after connect so
+  DDL is not capped at the web budget.
+- Privacy export retries with the same `command_id` replay from
+  `command_log` after the bundle is already completed. Open deletion
+  requests are unique per resource (`pending`/`approved`/`held`); pending
+  exports are unique per requester/subject/type/format; active retention
+  holds are unique per resource while `ends_at` is null. A later
+  `command_id` can still open a new export after complete.
+  `DeletionWorkflow->hold_request` stays four arguments besides the
+  invocant.
+- Privacy export, deletion, approval, hold, and erasure HTTP writes now mint
+  and require `command_id`. A second deletion request for the same open
+  resource reuses the existing row; a second hold for the same active
+  resource reuses the hold; a second export while one is still pending
+  reuses that request. `DeletionWorkflow->hold_request` stays four
+  arguments besides the invocant.
+- Moderation assign, release, resolve, and reverse HTTP writes now mint a
+  distinct `command_id` per form and require it at `Moderation::Workflow`.
+  Hide/restore/lock/unlock already minted one shared command id; sibling
+  queue forms no longer reuse it. Report and reverse stores keep
+  state-based replay; `ActionStore::reverse_action` stays four arguments.
+- Moderation hide, restore, lock, and unlock HTTP writes now mint and
+  pass `command_id` the same way forum posting does, so ActionStore
+  replay can fire on retry.
+- Install and bootstrap now recognize CPAN distributions from `cpanfile`
+  plus the `postgres` feature in `cpanfile.postgres`, and fetch only
+  through Carton (`make install-deps` / `script/bootstrap-deps`) using
+  `carton install --deployment`, `cpanfile.snapshot` pins, and the
+  official MetaCPAN HTTPS mirror. Carton is resolved via
+  `script/gpforum-carton` when it is not on PATH. The previous unpinned
+  `cpanm --notest` PostgreSQL sideload is gone.
+- Wired operational profiles into `platform-check` and readiness so undersized
+  production floors fail the same gate as OS preflight and query-budget drift.
+
+### Fixed
+
+- **One failing scheduled job no longer stops the jobs after it.** A purge
+  that died, a database restarting under it, ended the whole run, so the
+  digests and the end of timed suspensions waited for every later run. Each
+  job now fails alone and the summary names it.
+- **A worker releases only the handler claim it holds (migration 2050).**
+  A worker whose handler outlived the lease and then failed deleted the claim
+  of the worker that had taken it over, and a third could run the same side
+  effect. A claim now carries a token; only its run's failure releases it.
+- **A completion that cannot be recorded no longer repeats the side
+  effect.** The handler's result and the record of it were one failure, so a
+  database lost right after an email went out released the claim and the
+  retry sent the email again. The run now succeeds and the claim is left to
+  its lease; a claim that cannot be released keeps the handler's own error.
+- **A Discord announcement no longer holds database locks during the
+  request.** The thread, category and space stayed share-locked for up to
+  twelve seconds, so activity bumps and moderation on the thread hit their
+  lock timeout, and a slow request could lose the record that Discord had
+  the message. The topic is read and checked first; the request runs with no
+  transaction open.
+
+- **The explicit legacy ORM search comparison binds valid tag arrays.**
+  Combined tag filters now pass an actual PostgreSQL array value, preserving
+  the same intersection as the normal versioned-function path. A live
+  PostgreSQL regression covers it.
+- **Current guides describe the fresh database and media storage.** Operator
+  actions now start at 2000–2025 and keep retired migration procedures in a
+  historical section. SQL-role rollback guidance, partition references and
+  storage ADRs match the installed baseline; no import of older database
+  histories is claimed. Broken local links and section anchors are repaired.
+
+- **A search's operators hold for titles too (migration 1057).** The
+  fuzzy-title arms matched a title by similarity or by containing the
+  query, whatever the query asked: `"errore di sintassi" -risolto` found
+  the thread titled "Errore di sintassi risolto". They now apply only to a
+  query with no negation, phrase or alternative; a plain query keeps its
+  typo tolerance. The ORM path asks the same question.
+
+- **The Atom feed and the sitemaps answer with any title.** Their documents
+  were handed to the response as text, so a title, a summary or a slug with
+  a character beyond ASCII -- "perchÃ©", an ellipsis -- stopped the response
+  with "Wide character" before a byte was sent, and the reader saw an empty
+  reply. They are sent as the UTF-8 their content types and XML
+  declarations name. A thread's canonical URL escapes an accented slug
+  (`/t/ID/perch%C3%A9`): a sitemap's `<loc>` must be a URI.
+
+- **The home page shows what each of the latest threads opens with
+  (migration 1056).** Its template had a line for the opening post's
+  excerpt, which read a column no thread list had, so none was ever shown.
+  The latest-thread list carries the first 1,000 characters of the opening
+  post's safe HTML when that post is public, visible and in place, and the
+  page shows its text in at most 200 characters and two lines. The Atom
+  feed takes its summaries from the same rows, one statement fewer than its
+  own excerpt read, and the home page sends no statement more. On
+  20,000 threads and 100,000 posts, over the Unix socket, the list takes
+  0.25 ms for its 21 rows with their excerpts, against 0.16 ms without --
+  what the list and a separate excerpt read cost together.
+
+- **Feed summaries and thread descriptions read an entity once.** Their
+  text kept the safe HTML's entities, which the feed and the page then
+  escaped again: "Tom & Jerry" reached the reader as "Tom &amp; Jerry".
+  One helper, `GPForum::Infrastructure::Text::plain_excerpt`, makes the text
+  for the feed, the description and the home page, and a cut text ends on a
+  whole word with an ellipsis.
+
+- **A thread row on the home page uses its whole width.** The row kept
+  its article in the first of its two columns and the article split that
+  again, so the title and the excerpt had 214 of the row's 822 pixels and
+  16rem stood empty at its end. The rows of a thread list split into text
+  and facts when the list, not the window, is 44rem wide: the home page's
+  list is narrower than the window by its column of categories, and below
+  that width its rows stack as on a phone.
+
+- **`gpforum staging-drill-attachments` names each host check on its deploy
+  line**, `systemd=` and `nginx=` after `host=`, so a degraded host says
+  which check could not run. The drill's own text said so, and no operator
+  read it.
+
+- **`gpforum postgres-performance apply` refuses `--output` before it
+  touches the cluster.** It applied the settings, then failed on `--output`
+  and printed no report. Its options are read as every verb reads them, so
+  `--c` no longer passes for `--controlled-instance`, and a relative
+  `--plan`, `--restore`, `--journal` or `--output` reads from where the
+  command was typed, not the code directory. So do `gpforum gemini`'s
+  `--cert` and `--key`.
+
+- **`gpforum mail-in`, `sign-posts` and `gemini` say what was wrong with
+  their command line, then the usage.** They exited 2 with nothing on
+  stderr; `sign-posts --help` is help.
+
+- **`-h` is help on every command**, as on the front door. Fourteen took it
+  for an unknown option.
+
+- **Every command says an unknown option in the operator's language.**
+  Twenty said "Unknown option" in English.
+
+- **`query-plan-evidence` and `performance-seed` exit 1 when the database
+  fails, and `performance-seed` 78 for settings it refuses**, as the
+  console contract says. Both exited 2, misuse.
+
+- **`gpforum secret rotate session` drops a list of previous secrets the
+  service refused when it keeps none of them**, so the next start is not
+  refused for it.
+
+- **A DSN's inline password stays out of `performance-seed`'s failure, the
+  plan and Hypnotoad benchmark reports, and setup's "Replace it?"
+  question**, a quoted one holding a semicolon too.
+
+- **Per-request query statistics close the request their token names.** Two
+  asynchronous requests in one worker charged each other's statements, and
+  one lost its log line.
+
+- **`gpforum hypnotoad-benchmark` runs the checkout's Hypnotoad with this
+  Perl, from any directory**, not a `carton` on PATH, which may be another
+  Perl's. Its proxy keeps backend connections alive, as the shipped site
+  does.
+
+- **The PostgreSQL backend's CPU and memory are read on FreeBSD and Linux**
+  (`script/bench-postgres-configuration`): ps's time column in each of its
+  forms, and Linux's own count from /proc.
+
+- **`gpforum partitions` connects once a run**, not twice.
+
+- **Pinning and unpinning a thread are held to the moderation query
+  budget**, as locking it is.
+
+- **`gpforum doctor --calibrate-password` answers in the operator's
+  language** and fails on a write it cannot make.
+
+- **The reactor-fallback warning reaches the configured log, as JSON.** It
+  went to stderr before the log was set up.
+
+- **A warmup that fails is logged, and the server starts with cold
+  workers.** It stopped the start.
+
+- **Settings examples show the Unix socket the service listens on.** The
+  runtime guide's production block and `GPFORUM_RUNTIME_LISTEN`'s message
+  showed a TCP address, which `gpforum start --service` refuses.
+
+- **A partition is due for retention once its month has ended, in any
+  zone.** The registry writes a month's end in the server's zone
+  (`2026-09-30 20:00:00-04`), and it was compared as text with a UTC
+  cutoff, so a month west of UTC was proposed for detaching up to a day
+  early.
+
+- **A backup counts the uploads its archive holds.** It counted them before
+  tar ran, so an upload or an erasure during the backup made `gpforum
+  restore --check` fail a sound backup.
+
+- **`gpforum backup --verify` says a pg_dump older than the server as
+  `gpforum backup` does**, with the client to install, not its command
+  line.
+
+- **Backup and the drills read a DSN that names its database with
+  `database=` or `db=`**, as the forum, setup and doctor do; they refused it
+  as "missing dbname=". The DSN's own `user=` and `password=` are the last
+  resort for the login.
+
+- **A printed command quotes a path with a space:** the copy steps of
+  `gpforum service print --to`, the directory the services log to, setup's
+  `ln`, and the `chmod` that doctor, setup and `gpforum secret rotate` offer
+  for an open settings file.
+
+- **The host preflight recommends two web processes a CPU, as the forum
+  runs.** It capped the recommendation at two on any host, so
+  `GPFORUM_OS_MIN_RECOMMENDED_WORKERS` above two could never pass, and a
+  one-CPU host was reported degraded although it runs two.
+
+- **`gpforum api-role` says a catalogued function that is not there yet as
+  missing**, with `gpforum migrate` to run first, not as "not a restricted
+  API boundary".
+
+- **The staging host check reads `export KEY=value` in the settings
+  file**, as the service does; such a key was reported missing.
+
+- **Search finds a reply in your own private thread (migration 1051).** A
+  reply someone else wrote there, which the thread's page shows you, was
+  found only by its author.
+
+- **A WebSub subscription reaches the hub.** The publisher that owned the
+  forward's connection went with the action that made it, and every
+  subscription answered 502.
+
+- **Every category in the sitemap opens.** It listed `/c/SLUG`, a route
+  that does not exist, so crawlers got a 404 for each category.
+
+- **The Atom feed carries what each thread opens with, and who wrote it
+  (migration 1049).** Every summary was empty, and neither the feed nor an
+  entry named an author, which RFC 4287 requires.
+
+- **An upload that does not go through leaves no file behind.** Its bytes
+  were written before its rows, inside the command: when a later step
+  failed, the rows rolled back and the file stayed where the orphan purge,
+  which walks rows, never looks.
+
+- **A download whose file is gone fails instead of answering an empty
+  200.** It sent a zero-byte file under the member's file name and logged
+  nothing; it answers 503 and logs which object is missing.
+
+- **Pictures get thumbnails with macOS's sips.** The thumbnail step gave the
+  image tool no size, which sips crops by, and every picture failed; it now
+  measures the picture first, and a canvas past a profile picture's bounds
+  is not handed to the tool, which spent its whole timeout on it on every
+  retry.
+
+- **An upload whose id collided follows the row the store kept.** The
+  store reissued the id and the key, but the bytes stayed under the old key
+  and the scan and the link landed on the attachment holding the old id.
+
+- **Two reversals of one moderation action record it once (migration
+  1047).** Both read it unreversed, the second overwrote who reversed it,
+  and each wrote its event, its outbox message and its audit entry.
+
+- **An impossible date or cursor shows the form or the first page, not a
+  500.** The audit viewer took `2026-02-30` as a day and a cursor that only
+  began with one; every list took a cursor at a time of the right shape
+  that does not exist. PostgreSQL refused them and the request failed.
+
+- **A bookmark folder counts what its list shows (migration 1047).** It
+  counted every live bookmark in it, the list only those its member may
+  still read; a folder of threads all hidden or made private is no longer
+  offered.
+
+- **A repeated reject or withdrawal names the review.** It answered
+  `review_id: null` where the first answer, and a repeated approval, named
+  it.
+
+- **A thread's own subscription decides over a category follow (migration
+  1046).** A member who followed a category and set one of its threads to
+  mentions, or to none, still got every reply in it: the follow gave way
+  only to a thread mute.
+
+- **Two polls created at once on one thread answer conflict (migration
+  1046).** Since the vote stopped locking the thread, the second create
+  failed on the poll's key and its command was rolled back instead of
+  recorded.
+
+- **The files under a post keep their order (migration 1046).** The thread
+  page numbered them in the order its joins produced, which is not the
+  order the attachment read answers; with three files on a post it showed.
+
+- **The link rule screens direct messages.** It counted links only in a
+  post's body field, so a message, whose field is named differently,
+  carried any number of links past a rule that refuses them in a reply
+  (ADR 0139).
+
+- **Every change of a post or a suspension moves its member's score.** The
+  worker keyed a reputation change by the post or the member it was about,
+  so hiding a post, restoring it and revoking a suspension were skipped as
+  duplicates of the first change, and a suspension lifted as a mistake
+  lowered the score for good.
+
+- **A hide reaches every web worker without GlifiStore.** With no shared
+  cache configured, the documented default, each process kept a bare local
+  cache with no invalidation bus: the outbox worker's purge cleared its own
+  cache, the console's "purge" one web worker, and every other worker kept
+  serving a hidden post or a newly private category until the entry
+  expired. The stack is now a tiered cache over an empty shared layer
+  whatever is configured, so the bus attaches and every process is told.
+
+- **The migration lock waits for another deployer.** The session's
+  `lock_timeout` cut the wait for `pg_advisory_lock` at three seconds, the
+  failure read as "not locked", and a second deployer migrated beside the
+  first; the lock now waits, and a lock PostgreSQL refuses stops the run.
+  A role that may not read `schema_versions` is told so, where it read as
+  every migration pending and doctor told it to migrate.
+
+- **Doctor asks the three questions migrate asks.** It said "current" for
+  a database a newer release migrated, and "run migrate" for a late
+  migration migrate then refused.
+
+- **A moderator's edit no longer lands in the moderator's feed**: an edit
+  reads the post's stored author, as a restore does. **A deleted post's
+  realtime hint reaches the thread's readers**: it named the post, which
+  nobody may read any more, so nobody got it. **The sender's
+  direct-message frame keeps its id** across the NOTIFY and the backstop
+  poll, which delivered it twice.
+
+- **The plan gate measures what runs and requires what exists.** It
+  EXPLAINed the raw claim statement migration 1034 replaced, not the claim
+  function the workers call, and still required the three indexes 1040
+  dropped: it read `DROP INDEX IF EXISTS public.x` as dropping an index
+  named `public`. Its labels lose the version suffixes the catalogue left
+  behind.
+
+- **`evidence-validate` takes JSON false for `private_beta_claimed`**, as
+  its own message says.
+
+- **A sign-in on the request that cleared a stale session keeps its
+  cookie.** A browser posting the login form with a revoked or expired
+  session had the cookie set to expire while the request cleared it; the
+  sign-in then wrote its session into that cookie, the browser dropped it,
+  and the member landed signed out with a session row and an accepted-login
+  audit to show for it. A second step's challenge was lost the same way.
+
+- **A profile's replies page apart from its discussions.** The "older"
+  link carried the discussions' cursor, and the replies list read it as
+  its own, repeating or skipping replies; each list now has its own cursor
+  and its own link.
+
+- **Refused fields read in the reader's language.** A form's field errors
+  and the login refusal reached the page as the workflow's English words in
+  every locale; the page shows the catalogue's `form.error.*` message when
+  there is one.
+
+- **A pending account stays pending through a suspension.** Suspending an
+  account whose address was not confirmed made it `suspended`, and lifting
+  the suspension made it `active`, without the confirmation.
+
+- **A hold is refused on a closed deletion request, and an erasure waits
+  for a hold placed meanwhile.** A hold from a stale review page put a
+  completed request back to `held`; the erasure read the request and its
+  holds unlocked, so a hold committed while it ran was overrun and two runs
+  of one job both erased. The request is now locked first, as an approval
+  and a hold lock it, and the hold is made under that lock.
+
+- **A second-factor answer no longer deadlocks with a disable (migration
+  1045).** The answer locked the challenge, then the member's factor;
+  disabling and an administrator's reset take them the other way round.
+
+- **The export carries the member's bookmarks (migration 1045)**, with
+  their notes and folders.
+
+- **The audit viewer and the dashboard show what each action did.** On
+  PostgreSQL the entries' metadata arrived as the jsonb's text, and the page
+  drew metadata only from a hash, so every entry showed its action, actor
+  and target and never what it changed; the doubles held hashes, so the tests
+  passed. The call layer now decodes the metadata of the three audit reads,
+  the DBIx::Class path hands the same hash, and the presenter reads it
+  inflated. Metadata with an accent or a dash in it no longer stops the
+  diagnostics page, and an audit record holding such metadata verifies as
+  sound: both readers decoded the jsonb's characters as UTF-8 octets.
+
+- **A unique violation is a conflict in any language.** The call layer had
+  the SQLSTATE and let PostgreSQL's English sentence decide, so on a server
+  whose `lc_messages` is not C -- the ordinary production role cannot set it
+  -- a command id already in the command log raised an exception with no
+  message and no class, and the member got a 500 instead of the replay.
+
+- **A thread transfer counts the replies that are not deleted (migration
+  1044).** The recount after a move, split, merge or undo counted every post
+  but the first, so a thread holding a deleted reply listed one reply too
+  many for good; every reply, delete and restore counts the live ones (ADR
+  0119).
+
+- **A new member's thread held for review keeps its tags (migration 1044).**
+  The hold kept the post and the reply link, not the tags, and the approval
+  published the thread without them. The held thread keeps them normalised,
+  and the approval sets them on the thread it publishes (ADR 0134, ADR 0135).
+
+- **A reply answers only a post every reader of the reply may read
+  (migration 1044).** The reply names the post it answers, its position and
+  its author, to all its readers; the link was written whatever the post's
+  own visibility, so a crafted form could have a public reply name a post
+  only its author may read. A members-only post is answered by a reply some
+  level of which is not public, a private one only from a private reply by
+  its own author (ADR 0102, ADR 0132).
+
+- **Two tag writes on one thread cannot leave it ten tags (migration 1044).**
+  The title saved from two tabs at once ran two tag writes that each deleted
+  what the other had not yet committed; the write now takes the thread's
+  row first.
+
+- **A draft's autosave no longer blocks its member's other writes (migration
+  1044).** It locked the member's row FOR UPDATE, which every foreign-key
+  check on the member waits for -- their own reply, a bookmark, a sign-in's
+  session; FOR NO KEY UPDATE still serialises the saves and waits for an
+  erasure.
+
+- **An export lists each post once, with the text it shows (migration
+  1044).** It joined a post to every body it ever had, so a post edited
+  twice was exported, and counted, three times.
+
+- **A category cursor without its pinned part is no cursor.** It resumed
+  from the top of the pinned block, a compatibility path for cursors from
+  before nothing was released; it is now the first page, as any malformed
+  cursor is.
+
+- **A refused password change, email change or profile write goes back to
+  the settings page, which says why and hands out fresh command ids.** A
+  wrong current password, a new password short of the rules or an overlong
+  bio answered a bare 400 page; backing out of it returned the member to the
+  same form, whose command id had the refusal recorded under it, so the
+  corrected submission got the refusal back for as long as the page stayed
+  open. The page now says the refusal (`settings.refused`,
+  `settings.refused_current_password`, `settings.refused_password`; an
+  address already registered is told as the generic refusal, as the
+  registration tells it) and every form on it comes with a new command id.
+  The preferences form, whose values only a tampered form can get wrong, and
+  clients that ask for JSON still get the 400.
+
+- **An erased member's single-use tokens go with their credentials
+  (migration 1039).** A password reset, an email change carrying the new
+  address, a verification: their rows in `identity_tokens` stayed until they
+  expired and the retention purge took them, so the address the erasure
+  removed from the account lived on in them for up to a day.
+
+- **A refused password change, email change or password reset no longer
+  sticks to its command id.** Those commands leave the password out of the
+  request they fingerprint (a password is no thing to fingerprint), so the
+  command log, which records a refusal as the id's answer and replays it for
+  the same request, gave the corrected form sent again under its command id
+  the old refusal back for as long as the page stayed open. Those three
+  commands now ask the log to abandon their refusals
+  (`CommandIdempotency::run`, `refusal => 'abandon'`): nothing is recorded
+  and the id runs again. Every other command keeps its refusals as answers.
+
+- **A member stays signed in for the 30 days the session says.** The
+  Mojolicious cookie was stamped an hour ahead on every response, so a
+  member away for an hour was a visitor again, whatever the server's row
+  and `session_expires_at_epoch` said. Sign-in gives the cookie the session's
+  lifetime (`expiration`); the row and the epoch still end it 30 days after
+  sign-in (ADR 0018).
+- **Reporting another member's post from the thread page works.** Every post
+  carries a report form for a signed-in reader, but a command id was minted
+  for the reader's own posts alone, so the form under any other post sent an
+  empty id and was refused (400, "command_id is required"). Each post's
+  report form has an id of its own (t/744).
+- **A handler claim another worker holds no longer acknowledges the outbox
+  message.** A worker killed mid-handler left its claim; the next worker,
+  60 s later, found the claim held, read that as "skipped", and the outbox
+  marked the message done without the side effect -- notifications lost for
+  good, since the claim could be taken over only after 900 s. A held claim
+  is now a failure the outbox retries, and the claim's lease is 300 s, inside
+  the retries. A handler's exception object is rethrown as raised, so a
+  declared permanent failure is classified as one instead of retried four
+  times.
+- **A cursor of the wrong kind shows the first page instead of failing.**
+  Every list accepted a position or a timestamp cursor; a timestamp given to
+  a thread page reached PostgreSQL as a bigint and failed the request (500),
+  as a position did on the category and home lists. Each list now says
+  which kind it sorts by (`PageWindow` plans with `sort`), and the other
+  kind is no cursor. Fullwidth digits are no longer read as numbers.
+- **Downloading an attachment named outside ASCII works.** The name went into
+  `Content-Disposition` as typed and writing the header died ("Wide
+  character"), dropping every download of a file named in Chinese or with a
+  typographic dash. The quoted name is ASCII and the real one follows as
+  `filename*=UTF-8''...` (RFC 6266).
+- **An export holds every part it counts.** Six named parts were stored and
+  the others -- direct messages, drafts, held posts, relations, likes,
+  reactions, poll ballots, second factor, avatar -- counted only, so an
+  export said "5 direct messages" and held none. The likes and reactions
+  the SQL collects are in the bundle and counted.
+- **Smaller.** The Atom feed's `<updated>` is RFC 3339 (PostgreSQL's
+  `+00` zone and space were sent as read); admin and moderation page sizes
+  from the URL are bounded numbers (text was a 500, a huge size unbounded);
+  an upload whose row cannot be written deletes its object instead of
+  leaving it where no purge sees it; a dead letter no longer reads a column
+  the outbox row does not have; the thread page's one-statement reads skip a
+  part they do not know instead of dying on a restricted hash; a shared
+  render's "copy post link" URL carries the page's own parameters, not the
+  first visitor's query string.
+
+- **Suspension ends are compared as instants in PostgreSQL and Perl.** A
+  suspension ending later today could read as expired because the database
+  timestamp and ISO-8601 clock were compared as text. Migration 1024 adds
+  typed API versions, and the ORM fallback compares epoch seconds. Both
+  paths now find an open-ended suspension behind more than ten newer
+  expired ones. Tests exercise three database time zones and the exact end.
+  Automatic expiry of the member status and concurrent moderation writes
+  remain open in the ASVS record.
+- **Revoking a suspension preserves the current account state.** Deleted
+  and pending accounts are no longer reactivated by revocation or its retry;
+  a member with another active suspension stays suspended. Suspending a
+  deleted account is refused. Both SQL and ORM paths have regression tests.
+- **Passwords accept Unicode through both HTTP and owner creation.** New
+  hashes use exact UTF-8 octets and retain 128 random salt bits. The public
+  salt marker preserves existing Latin-1 hashes without accepting a second
+  encoding of a different password. Tests cover Cyrillic, CJK, emoji,
+  spaces, old hashes and the CLI-to-HTTP boundary.
+- **Second-factor replay tests use the code actually consumed.** Recomputing
+  a code from the current clock could choose the next 30-second window and
+  mistake its valid code for a replay. The tests now read the recorded
+  consumed step; the production replay checks are unchanged.
+
+- **Rows written in the same second list in the order they were written.**
+  An id carried its time in whole seconds: the builtin `time` left the
+  milliseconds of every UUIDv7 at zero, so the ids of one second sorted on
+  their random bits. Most rows take `created_at` from the same clock, to
+  the second, and the lists that order by `created_at`, then by id (the
+  author's held posts, the review queue, notifications, mentions,
+  bookmarks, reports, the audit log) showed two rows of one second either
+  way round: a held post approved a moment ago was not always first. An id
+  now carries the millisecond and 4,096ths of it (RFC 9562, method 3), and
+  never sorts before the one the same process minted ahead of it.
+  `t/integration/postgres-first-post-review.t` failed six runs in ten on
+  this; it passes 40 in 40.
+- **The mails with a link were English whatever the member reads.** A
+  password reset and an email change confirmation were always sent in
+  English, while the notices about the same account came in the member's
+  language. The outbox now carries the member's `preferred_locale` with
+  them, and `Identity::Mailer` takes the subject and words of every mail
+  with a link from the catalogue (`auth.*_mail_subject`, `auth.*_mail_body`,
+  in English and Italian), English when none is named. The verification
+  mail of a new account is still English: `api.identity_register_command`
+  writes its outbox row, with no locale.
+- **A push to `main` could still end with no CI run.** `ci.yml` never
+  cancelled a running job on `main`, but `main` was one concurrency group,
+  and GitHub keeps one pending run per group: a push made while one run was
+  going and another waiting cancelled the waiting one before it started
+  (39810565640 and 39812192048 on 2026-10-22 had no job). Each commit on
+  `main` now has a group of its own; `t/706` holds it.
+- **The architecture documents say where the SQL is.** `ARCHITECTURE.md`
+  (text and diagram), ADR 0051, ADR 0107 and the README still sent the
+  services through DBIx::Class after ADR 0126 moved every statement into
+  versioned `api` functions; they now name the call layer and what
+  DBIx::Class is still loaded for (`t/722`).
+- **The early ADRs say which of their capabilities are not built.**
+  Fourteen accepted decisions between 0049 and 0097 prescribe object
+  storage, WebAuthn, webhooks, API tokens, OpenAPI, tracing, an SBOM or
+  federation as if they ran; each status now names those as a target, not
+  current state (`t/722`).
+- **The guides no longer state counts the next change makes wrong.** The
+  README counted the SQL functions and named a search version, the
+  deployment guide's setup transcript the migrations, and the quality
+  program the modules and Perl files; they now say what holds without the
+  number (`t/722`).
+- **The quality program no longer grades itself.** Its 8.0 / 10 stood
+  after a review of `main` on 2026-10-15 confirmed defects in work it
+  counted as done; the table is dated 2026-10-04 and a dated note points
+  at the review, the fixes and the backlog instead of a new score
+  (`t/722`).
+- **The operator actions say what the tree has.** Several still told an
+  operator that the old `GPFORUM_ENV` names start until v0.3.0, to run
+  `bin/gpforum-admin-bootstrap`, `script/antivirus-check` and
+  `script/os-preflight`, to re-copy the removed unix-socket unit, to install
+  MacPorts' ClamAV, and that production requires GlifiStore; they now name
+  the `gpforum` verbs, Homebrew and an optional GlifiStore, and Unreleased
+  opens with a summary (`t/722`).
+- **A relative link in the documents cannot point at a file that is not
+  there.** Every one in `docs/`, the README, ARCHITECTURE and the CHANGELOG
+  resolves today, and `t/722` now fails on the first that does not.
+- **A column added to a table no longer breaks the workers that call its
+  functions.** 158 functions return a table's row, so a migration adding a
+  column changed their result type under the running workers: a prepared
+  call was refused with `cached plan must not change result type` once its
+  plan was invalidated, and a call DBD::Pg had run once unnamed crashed the
+  worker when it ran again. The call layer now prepares each call on the
+  server at once, and on that refusal forgets the statement and, outside a
+  transaction, calls once more; `t/641` refuses a table's row as the result
+  of a function from migration 136 on. ADR 0126, amended.
+
+- **A migration and the row that says it ran commit together.** The runner
+  wrote a migration's `schema_versions` row after the file had committed
+  itself, so a crash or a lost connection between the two left it applied
+  and unrecorded, and the next deploy ran it again. The rows are now written
+  inside the file's own transaction, a failure is rolled back before the
+  migration lock is let go of, a new file of several transactions is
+  refused, and a migration numbered below one already applied is refused by
+  `migrate --apply` and `migrate --check` unless it is a listed gap (120).
+  ADR 0126, amended.
+
+- **The coverage gate can pass.** Its first run to finish failed outside
+  `lib/`: `script/coverage` instrumented `t/performance/`, whose tests drive
+  the harness of `script/lib/` in timed child processes that Devel::Cover
+  slowed past their deadlines and whose JSON it mixed with its own output,
+  and the upload action could not walk the thousands of files of
+  `cover_db/`. Coverage now runs `t/` and `t/integration/` -- the report
+  selects `lib/` only, and `t/performance/` runs uninstrumented in the lint
+  job -- and uploads the database as one `cover_db.tar.gz`.
+
+- **The list of held posts no longer names a place its author lost.** The
+  author's `/pending` page and its JSON named the thread and category each
+  held post went to by their current title, even once the thread was
+  hidden, deleted or moved somewhere the author cannot read; and an
+  approved thread had no link, since the decision records only the post.
+  `moderation_review_mine_v3` (migration 127) reads each place as the
+  author does and finds an approved thread through its post (ADR 0134).
+
+- **One-click unsubscribes from a mail provider all land.** The
+  unsubscribe link was rate limited per client address, and a mail
+  provider posts every user's RFC 8058 one-click unsubscribe from a few
+  addresses: past 60 in five minutes the rest were refused with 429, and
+  mail clients do not retry. A signed link is now limited per account it
+  names; a link that does not verify, per address (ADR 0078).
+
+- **The personal feed leaves out members on the reader's ignore or block
+  list.** The inbox, the mentions page and the digest left out an ignored
+  or blocked member's replies and posts, but the feed still listed their
+  threads and posts. `community_list_feed_v3` (migration 126) judges the
+  list before `LIMIT`, so a page stays full; taking the member off the
+  list brings the items back (ADR 0130).
+
+- **Approving a held post no longer publishes it for a suspended author.**
+  An approval wrote the post as its author's command, but the posting
+  workflow trusts the controller's participation check, which an approval
+  never passes: a member suspended after posting had the post published
+  on a public thread. The review queue now refuses it, as ADR 0134 says,
+  and the post stays pending until the suspension ends or staff reject it.
+
+- **Performance evidence no longer lands on `main`.** The performance
+  workflow committed its history to `main`: `benchmarks/` grew by
+  megabytes a day and every publication raced the pushes of the code. The
+  history (`benchmarks/results/`, `latest.json`, `history.json`) now lives
+  on the `performance-data` branch, which the publisher appends to and
+  never creates; the baseline is read from there, every run keeps its
+  evidence as an artifact for 14 days, and `main` keeps only the harness,
+  schema and documentation.
+
+- **CI finishes on `main`.** `ci.yml` was one sequential job of about two
+  hours with `cancel-in-progress` on every ref, so each push to `main`
+  cancelled the run before it and `main` had no finished result; the
+  integration tier ran twice and no `prove` ran in parallel. It is now four
+  jobs that start together: lint, unit (`prove -l -j 4 t`), integration
+  (`make integration JOBS=4`, once, over PostgreSQL's Unix socket) and
+  coverage, which runs nightly and on demand. A run on `main` is never
+  cancelled. `docs/CI.md` lists every check before and after, and
+  `t/706-ci-finishes.t` holds the workflow to that list. The backup test
+  that needed a database moved into `t/integration/`.
+
+- **`GPFORUM_RUNTIME_REQUESTS` says what it counts.** It is Hypnotoad's
+  `requests`, the keep-alive requests one connection serves before it is
+  closed, and the settings page and the environment file template called
+  it the requests a web process serves before it is replaced (that is
+  Mojolicious's `accepts`, 10,000 connections, which Good Phorum leaves as it
+  is).
+- **The proxy closes an idle connection to the service before the service
+  does.** nginx kept an idle upstream connection for its default 60
+  seconds and Caddy for 2 minutes, and the service closes one after 5
+  (`GPFORUM_RUNTIME_KEEP_ALIVE_TIMEOUT`): a request sent down a connection
+  the service was closing failed, and nginx does not send a POST again.
+  The shipped site sets `keepalive_timeout 4s` in its upstream and the
+  Caddyfile `keepalive 4s` in its transport; print the site again with
+  `gpforum service print nginx` (or `caddy`) to take it.
+- **A burst of connections through the proxy no longer lands on one
+  worker.** Since the listener moved to a Unix socket, connections the
+  proxy opened at once were all queued when the first worker woke, and that
+  worker, accepting until the queue was empty, kept them: with 32 busy
+  connections and 96 new ones, one of four workers held 59 to 103 of the
+  128, keep-alive connections the proxy then reuses, and the new ones'
+  p95 on the category page was 531 ms. Each worker now takes one
+  connection at a time from a Unix socket (`single_accept=1`, unless the
+  location sets it): 32 to a worker, a p95 of 175 ms, and 10% more
+  requests served in all. TCP listeners are unchanged
+  (docs/PERFORMANCE.md, "Through the socket").
+- **An email digest is mailed at most once (ADR 0078).** The outbox marks
+  a handler done only after it returns, so when that mark failed after the
+  mail server had accepted the digest, the retry mailed it again. The
+  worker now claims the digest's record before it sends (migration 123):
+  a second delivery of the event sends nothing, and a mail the server
+  refused is given back for the retry. The digest's `Message-ID` is named
+  by its event, the same on every attempt.
+
+- **Every member with the email digest on gets it, and a missed day is
+  caught up (ADR 0078, amendment of 2026-10-17).** Only the last period
+  could be due, taken in member-id order under the run's `--limit`: a run
+  missed lost that day for everyone, and on a forum with more members than
+  the hourly runs reached, the members with high ids never got one. A
+  digest now covers a window from where the member's last one ended,
+  at most 14 days back, so what was missed arrives in the next mail, once;
+  each run reads the due members in pages, the longest waiting first. A
+  switch between daily and weekly no longer re-reports posts already sent,
+  a post committed just after midnight is no longer lost at the period's
+  end (a period is due ten minutes after it ends), a suspended member no
+  longer gets a digest, and a thread the member muted no longer appears
+  through a category they follow. Migration 122.
+
+- **The email digest's HTML keeps its own styles.** The body's inline
+  style quoted its font name ("Segoe UI") inside a double-quoted
+  attribute, so the attribute ended at the quote and the rest of the
+  declaration -- size, colours, measure -- spilled out as stray
+  attributes. Every inline style is now escaped into its attribute.
+
+- **Development runners start Good Phorum again on macOS and FreeBSD.**
+  `script/gpforum-carton exec morbo bin/gpforum`, `perl t/02-health.t` and
+  `prove --norc` stopped with
+  "actual libev backend is 1": they load EV before Good Phorum can choose, and
+  libev's own default there is select or poll. `script/gpforum-carton exec`
+  now exports `LIBEV_FLAGS` and `MOJO_REACTOR` for the native backend before
+  any Perl starts; a runner that bypasses it starts a development application
+  on the existing loop with a logged warning, and production still refuses
+  it, naming the variables and the entry points that set them (ADR 0097).
+- **Over the socket, peer authentication refused both the runtime role and
+  the operator's migrations.** With Debian's `local all all peer` and the
+  host-less DSN, the web service (account `gpforum`) was refused as
+  `gpforum_runtime` and the operator's `gpforum migrate` (their own login)
+  as `gpforum`, and no map existed anywhere. `gpforum setup` prints, on a
+  deployed host whose database is on the socket, one `pg_hba.conf` line for
+  the forum's database and two roles through a `gpforum` map, and the
+  `pg_ident.conf` lines -- the service's account as both roles, the
+  operator as the owner -- with the reload. `gpforum doctor` checks the
+  operator's connection too when the file names a role for it, says a peer
+  refusal as one (which account, which role) in either language, and
+  repeats the lines. A new CI workflow runs a Debian cluster as packaged,
+  adds the lines and connects as both accounts (ADR 0137).
+
+- **A PostgreSQL whose socket is in `/tmp` was out of the services' reach.**
+  The systemd units run with `PrivateTmp=true`, a `/tmp` of their own, so a
+  server built from source, which keeps its socket in `/tmp`, answered
+  `gpforum doctor` and not the service. `gpforum service print systemd` now
+  binds a socket directory under `/tmp` into the units read-only, and for
+  `/tmp` itself writes `PrivateTmp=false` with how to give the server a
+  directory of its own; doctor fails `database_socket` when the installed
+  unit hides the socket it connected through (ADR 0137).
+
+- **`gpforum doctor` and `gpforum setup` named a socket "unix:5432", and a
+  missing socket a refused connection.** A DSN without `host=` reaches
+  PostgreSQL through libpq's socket directory, and both now name the socket
+  file as libpq does -- `/var/run/postgresql/.s.PGSQL.5432` on Debian, the
+  one the connection used when doctor made one -- and a socket that is not
+  there says so, with the start command and the `host=` to correct, in
+  either language (ADR 0137). The doctor, staging-drill and stress-load
+  guides no longer show TCP addresses for local connections.
+
+- **The announcements no longer cost every page a statement.** Since
+  migration 113 each page read the active announcements from PostgreSQL;
+  they are now kept in the application cache for 30 seconds under their own
+  `announcements` tag, which an announcement published or retired drops at
+  once (the admin workflow purges it with the public cache, and the
+  announcement events purge it in the shared cache). The query budget of
+  every page is back to its measured value; the thread page's budget
+  records the two statements the likes (migration 109) and the reply
+  targets (114) take, one each however many posts.
+- **The paired stored-function benchmark runs again.** It calls the
+  retained search versions 2 and 4, which predate the scope argument of
+  migration 110, through `GPForum::Infrastructure::SqlFunction::Retained`
+  (the call layer that drops the values a retained version never took,
+  moved from the test library), so `script/bench-sql-functions
+  --paired-functions` and its integration test no longer fail on the
+  argument count.
+- **Doctor recognizes current OpenSSL handshake errors.** Plain HTTP on a
+  TLS port may report packet length or record layer errors during connection;
+  those are classified as handshake failures, while certificate errors and
+  errors during an established TLS read retain the TLS classification.
+
+- **Hypnotoad benchmark worker discovery works with FreeBSD `ps`.**
+  Each PID, parent PID and command column uses a separate `-o` argument;
+  FreeBSD interpreted the combined format as one PID column with a custom
+  header, leaving the benchmark's worker list empty.
+
+- **A start with old names in the environment file warns of each once.**
+  `gpforum start --service` logged each, then ran Hypnotoad in its place,
+  which built the application again and logged each a second time, 0.9 s
+  later. It now tells Hypnotoad, in `GPFORUM_SETTINGS_WARNED`, that they
+  were said.
+- **`gpforum help secret` names this host's environment file**, Homebrew's
+  on macOS, where it named `/etc/gpforum/gpforum.env` on every host.
+
+- **Doctor's sizing line in development counts the one process** `gpforum
+  start --foreground` runs: `1 web process (gpforum start --foreground)`,
+  where it said 14 on a 10-CPU laptop. A server's line is as before.
+
+- **macOS production is eight commands from the clone, in one document.**
+  `sudo gpforum service print --to /Library/LaunchDaemons` makes the
+  directory the launchd jobs log to, the `gpforum` account's, 0750, so the
+  `install -d` step after it goes, and is printed only while the directory
+  is not there. DEPLOYMENT's macOS section carries the packages line, with
+  `nginx certbot`, the clone and `sudo /opt/gpforum/bin/gpforum setup`,
+  where it typed `sudo gpforum setup` before anything had linked `gpforum`.
+
+- **`gpforum service print --to` says what it needs.** Into a directory only
+  root can write, such as `/Library/LaunchDaemons` without `sudo`, it
+  answered with Perl's own `Error in tempfile() using template ...:
+  Permission denied`; it now says `Only root can write into DIR: run it with
+  sudo, as sudo gpforum service print TARGET --to DIR`. An nginx site
+  refused before certbot is installed names the packages first, `brew
+  install nginx certbot && sudo certbot certonly ...` (apt's or pkg's on
+  Debian and FreeBSD), as the bare print does.
+
+- **`gpforum upgrade`'s backup line makes its directory first.** It named
+  `gpforum backup --to /var/backups/gpforum`, whose parent is root's on
+  macOS and which a fresh Debian host lacks, and the backup, run as
+  `gpforum`, could not make it. Until the directory is there, the line
+  begins `sudo install -d -o gpforum -m 700 /var/backups/gpforum &&`, as
+  `docs/ops/upgrade.md` now shows.
+
+- **`make install-deps-*` names the next real step.** It ended with `Next:
+  check the host, with script/system-preflight`, a step the quick start no
+  longer has, after an upgrade's install too. A checkout not set up yet is
+  told to run `bin/gpforum setup --environment development` (with `sudo`
+  but on macOS), a production host `sudo …/bin/gpforum setup` as before,
+  and a host whose environment file is in place, upgrading, nothing:
+  `gpforum upgrade` printed the steps after it.
+
+- **A drill no longer removes a directory it did not make.**
+  `script/pitr-drill` and `script/standby-drill` delete their working
+  directory when they end; `--dir` naming one that already held files took
+  them with it. Such a directory is now refused before any cluster starts,
+  and a relative `--dir` is read from where the drill was run.
+- **Doctor's fix for a renamed variable keeps its value.** For
+  `GPFORUM_SMTP_SSL=off` it said only to remove the line, which turned TLS
+  back on; it now says to write `GPFORUM_SMTP_TLS=off`, then remove the old
+  line. The web processes are counted once, in the sizing line.
+- **Setup writes `GPFORUM_ENV=production` over `production-small` or
+  `production-medium`** instead of asking for `--force`, and the settings
+  page no longer lists the three retired settings.
+
+- **A metrics rotation in a file named with `--env-file` needs no restart
+  either.** `gpforum secret rotate metrics` drops the restart whenever the
+  installed web unit names the file it rotated, not only for the host's own
+  file: the units `gpforum --env-file FILE service print` writes hand FILE
+  to `bin/gpforum`, which tells the service in `GPFORUM_ENV_FILE`. The
+  launchd jobs did not: they sourced FILE and then `bin/gpforum` read the
+  host's file over it. Each plist printed for another file now passes it
+  with `--env-file`. Before the services are installed, the step `secret
+  rotate` offers is `gpforum service print --to` the directory the host's
+  service manager reads, as setup offers it, not a bare `service print`.
+
+- `gpforum setup` kept `GPFORUM_MAIL_FROM` at the old domain when the
+  address changed. A sender it derived (`forum@` the address's host) now
+  follows the new address, and setup says so (`GPFORUM_MAIL_FROM:
+  forum@new.example, following the address (it was forum@old.example)`); one
+  the operator wrote stays.
+
+- `docs/ops/upgrade.md` said `gpforum migrate` names the restart. With
+  nothing to apply, it names none. The upgrade's second line now ends with
+  the restart whatever the migration finds, in the document and in `gpforum
+  upgrade`.
+
+- The README's Debian and Ubuntu package line installs `libssl-dev`, which
+  Net::SSLeay (under IO::Socket::SSL) builds against: without it
+  `make install-deps-postgres` stopped at Net::SSLeay.
+
+- **`gpforum setup` finds a PostgreSQL superuser that takes a password, and
+  says why none answered.** After libpq's own login (and, under sudo, the
+  operator's) it tries the user and password the data source names, then
+  `GPFORUM_DATABASE_USER` and `GPFORUM_DATABASE_PASSWORD` from the shell it
+  was started in, and says the way in on the line of what it made: `made,
+  with its role gpforum, as PostgreSQL's superuser postgres, from
+  GPFORUM_DATABASE_USER`. When none answers it says what libpq told each
+  login (`operator: role "operator" does not exist`), offers
+  `PGUSER=postgres gpforum setup`, and, for a role that logged in only to
+  find its database missing, prints the `CREATE DATABASE` alone, with no
+  `CREATE ROLE` that would fail with "already exists" and no new password
+  that would lock the role out.
+
+- The hourly `gpforum-scheduled-jobs` timer failed on every run, so expired
+  sessions, tokens and old outbox rows were never purged; the first run after
+  upgrading may remove a backlog. Every `bin/gpforum-*` command runs on its
+  own instead of dying on `Const::Fast`, and `bin/gpforum` run by an older
+  Perl finds the supported one or says what to install. The FreeBSD rc scripts
+  and launchd plists no longer override the file's `GPFORUM_ENV`. A
+  `GPFORUM_MAIL_FROM` with a display name is checked like a bare address.
+
+- **An id that is not a uuid is a 404 on the public pages too, not a 500.**
+  `/t/anything`, `/c/anything`, `/attachments/anything/download` and the
+  post actions under `/p/anything` bound the word for a uuid column,
+  PostgreSQL refused the statement, and the page answered 500 (the writes
+  503) and wrote the error log; anyone could fill it from a URL. A value
+  PostgreSQL would not read as a uuid now sends no statement and finds
+  nothing (`GPForum::Infrastructure::PreparedQuery`, through which the
+  thread, category, post, attachment, read state, bookmark, subscription
+  and session lookups now run). A uuid written as PostgreSQL also reads one
+  (upper case, braces, no hyphens) still reaches the row and its 301.
+- **The search endpoint's query budget is 3, not 2.** A signed-in search
+  runs the session validation, the viewer's grants and the search itself;
+  the budget was set when only the search was counted, and every signed-in
+  search was marked over budget. Raised on that evidence
+  (`t/integration/postgres-query-budget.t` had already measured 3).
+
+- An outbox batch slower than its claim was delivered twice. A worker
+  claims up to 100 messages for 60 seconds, and it acknowledged the ones it
+  delivered together at the end of the batch, without ever renewing the
+  claim: once a batch outlived it, another worker claimed the rest, the
+  messages the first had not reached yet were delivered by both, and those it
+  had delivered but not acknowledged were delivered again. Each message's
+  claim is now renewed just before its dispatch and the message acknowledged
+  right after it, both only while it is still the worker's own; a message
+  another worker took is skipped, counted as `lost` in the batch's summary
+  and logged as a warning. That costs two single-row commits a message: on
+  the development laptop one worker with a transport that does nothing
+  dispatches about 2,150 messages a second, where it managed 9,000 to 11,600
+  (`docs/PERFORMANCE.md`).
+
+- A worker whose outbox claim another worker had taken could still
+  dead-letter the message, even one the other worker had delivered: its
+  failure was written on a condition on `locked_by` whose outcome nobody
+  read, and the dead letter written regardless. The failure is now written
+  only while the message is still the worker's, and the dead letter only when
+  that write updated the row, in the same transaction; a worker that lost the
+  message records neither and logs it.
+
+- Hypnotoad could not load the application: `hypnotoad bin/gpforum`, what
+  every service unit runs, stopped with `File "bin/gpforum" did not return
+  an application object.`, because the file ended in `1;` after starting the
+  application. It now ends with the application, and a test loads it as
+  Hypnotoad does.
+
+- An attachment larger than 16 MiB never reached the application whole:
+  Mojolicious cuts a request off at 16 MiB unless told otherwise, so even
+  with nginx raised to 26 MiB an upload between 16 and 25 MiB failed
+  without a reason. The application now takes requests up to 26 MiB, the
+  25 MiB attachment limit and the form around it, as nginx does.
+
+- `gpforum-admin-bootstrap` reported a database it could not reach as
+  misuse: exit 2 and the usage text after the error. It now says it in the
+  same one sentence as every other command, and exits 1.
+
+- The guides now say that nginx's user must be in the `gpforum` group to
+  send attachments by X-Accel-Redirect or to reach the UNIX socket, both under
+  directories of mode 0750; without it every download answered 403.
+  `docs/PRODUCTION_READINESS.md` and `docs/ops/staging-host.md` install with
+  `make install-deps-production` and start the outbox worker as
+  `docs/DEPLOYMENT.md` does, `docs/PERFORMANCE.md` no longer says that
+  `--strict` fails a degraded host or that GlifiStore is required.
+
+- `/metrics/`, which the application answers as `/metrics`, reached it from
+  anywhere: nginx kept only the exact `/metrics` to the loopback, and the
+  Caddyfile named only that path. Both now hold either spelling.
+
+- On a host installed as the guide says, with the code tree root's, every
+  start and every command run as `gpforum` printed `mkdir:
+  /opt/gpforum/local/.perl-shim: Permission denied`: `script/gpforum-carton`
+  made its interpreter shim on first use, as whoever ran it.
+  `script/bootstrap-deps` (`make install-deps-production`) now makes it
+  while installing; on a host installed before, run that once more.
+
+- Upgrading the code without re-copying the systemd units stopped the
+  forum: Hypnotoad wrote its pid file to `/run/gpforum` while the installed
+  unit waited for `/opt/gpforum/hypnotoad.pid`, and systemd failed the start.
+  Under a unit that still sets `MOJO_MODE`, which only the old ones do, the
+  pid file stays where that unit looks, and the start says to copy the units.
+
+- A command whose failure was a refused connection or a missing socket of
+  something else -- clamd, the SMTP server, GlifiStore -- was told to start
+  PostgreSQL, and its own reason was not printed. Only a failure DBI, DBD::Pg
+  or libpq reported is now read as the database's.
+
+- nginx refused uploads between 20 and 25 MiB with its own 413 page:
+  `client_max_body_size` was 20m against Good Phorum's 25 MiB limit. It is 26m.
+
+- The Caddyfile served `/metrics` to anyone with the token; like the nginx
+  configurations it now answers the loopback only.
+
+- The shipped units start on a host with one CPU. The preflight compared the
+  configured `GPFORUM_WEB_PROCESSES` (4) with what one CPU carries (2) and
+  called the host oversubscribed, although under the default `cap-to-cpu`
+  policy Hypnotoad is given 2; it now checks the number Hypnotoad is given.
+
+- `ThreadStore` checks a thread title edit, move, delete or restore against
+  the same rule as the posting workflow, authorship included, under the
+  thread's row lock: a direct store call could change another member's
+  thread, or restore one someone else deleted.
+
+- An erasure that cannot read the member's credentials or sessions fails and
+  rolls back, and can be run again. Before, it could finish with the account
+  anonymized and the credentials revoked while the member's sessions stayed
+  signed in.
+
+- A log file that cannot be opened stops startup with an `X::Config` error
+  that carries the original reason. The check meant to report it never ran:
+  Mojo::Log died first with its own message.
+
+- `Antivirus->from_config` returns undef for `none`, as documented, instead
+  of an empty list.
+
+- A hypnotoad-benchmark child that cannot exec (a missing reverse-proxy
+  binary, say) exits 127 with the reason in its log, instead of running on in
+  a copy of the parent: that copy stopped the hypnotoad being measured and
+  printed a second report.
+
+- Admin category routes answer 404, not 503, for a space id in the body or a
+  category id in the path that is not a uuid. A slug a soft-deleted category
+  still holds, or an edit onto another category's slug, answers 400 naming
+  the slug instead of 503: the store reports the slug taken (read from
+  PostgreSQL's own message, so an over-long slug is not mistaken for one) and
+  `Admin::Workflow` maps a store's errors to `invalid`.
+
+- A retried notification delivery no longer writes a second `notifications`
+  row when its leftover row is stored at another time or in another month's
+  partition: the stored row is reused and the inbox row takes its time. Two
+  workers recording the same caller-supplied event id at different times no
+  longer both store it, and a caller-supplied audit id already stored at
+  another time is written under a new id (ADR 0116).
+
+- Every server profile ignores `GPFORUM_QUERY_BUDGET_ENFORCE=1` (production,
+  production-small, production-medium, staging); before, only
+  `GPFORUM_ENV=production` did, and elsewhere a breached budget left the
+  response unsent. `/metrics` counts pending and failed outbox messages in one
+  grouped statement instead of the same statement twice, and has its own
+  budget, `metrics` (5 statements): run `script/query-budget --sync` after
+  deploying. `--sync` deletes the rows of endpoints the catalog no longer has
+  and names them (`removed` in `--json`).
+
+- The privacy dashboard no longer fails for a member with an export request,
+  and the export download returns the bundle as a JSON object instead of one
+  JSON string: the jsonb manifest is read decoded. An erasure job that runs
+  after its retention hold ends no longer keeps
+  `last_error = 'retention hold active'`.
+
+- Password credentials take `created_at` from the application clock that also
+  sets `revoked_at`: an application clock behind the database clock no longer
+  breaks `credentials_revoked_after_created_check` on the next password change.
+  A new credential id that collides with one of the member's own revoked or
+  other-type credentials (a second factor) is minted again instead of being
+  returned as the active password, which left the member with none. A
+  registration that reuses a leftover account writes its credential, event and
+  audit in one transaction (ADR 0110).
+
+- The hourly `attachments` job removes an orphan upload's file and its
+  thumbnails from `attachment_root`, not only its row; until now those files
+  stayed in storage indefinitely. The timer must see the same
+  `GPFORUM_ATTACHMENT_ROOT` and working directory as the application, as the
+  shipped units do.
+- An abandoned upload must be at least a day old before the job removes it,
+  so an upload still in progress is never touched, and `--limit` counts real
+  orphans only: linked uploads at the front of the queue no longer stop the
+  job reaching the orphans behind them.
+- An orphan the job cannot purge (its file cannot be removed, or its row stays
+  locked past `GPFORUM_DATABASE_LOCK_TIMEOUT_MS`) ends the run with
+  `ok=0 attachments_errors=N` and exit 1; the other orphans are still purged
+  and the failed one is retried on the next run.
+- Repeating a delete, or a thumbnail request for a thumbnail that already
+  exists, returns the attachment again instead of an empty one.
+
+- A database error that is not a unique violation is no longer taken for a
+  conflict because the row's data contains the words "unique constraint":
+  `UniqueConflict->is_conflict_on` now requires PostgreSQL's own message to
+  report the violation as well as to name the index.
+
+- A raced notification, event or audit id is reused or minted again on
+  PostgreSQL. Those tables are partitioned, and PostgreSQL names the
+  partition's index in a unique violation (`notifications_default_pkey`), not
+  the table's constraint, so every collision was rethrown as a 500.
+  `UniqueConflict->is_conflict_on` reads the partitions' indexes from
+  `pg_inherits`, matches whole identifiers, and looks only at the server's own
+  sentence, not the row data DBI appends.
+
+- **The evidence commands exit 1, not 2 or 255, when their check raises an
+  error**, with a redacted reason and a JSON `status: fail` document;
+  `partition-maintenance` against an unreachable database says why;
+  `stress-load` without a base URL is misuse (exit 2).
+
+- **A malformed id in a moderation or privacy URL answers 404**, word for
+  word the unknown-id answer, without a query (it was a 500, or 503 for a
+  suspension revoke); filters with a malformed id show an empty page. A
+  signed-out privacy request and a forbidden staff privacy action get their
+  401 or 403 instead of a dropped connection.
+
+- **"Purge page cache" says when GlifiStore was not reached**: a warning,
+  styled as one, names the tags left in the shared cache (they expire within
+  their TTL); the JSON answer says `cache_purged_locally`, and a resubmitted
+  form replays the same warning.
+
+- **The application and `gpforum-migrate --apply` connect as an ordinary
+  role.** Every connection ran `SET lc_messages`, which PostgreSQL allows only
+  to a superuser, so a production role that owns its database could neither
+  migrate nor serve. The locale is now asked for and, when refused, left at
+  the server's setting; unique-conflict recovery reads the SQLSTATE first.
+
+- **A moderator can hide and unhide a thread on PostgreSQL**: the action
+  wrote a `hidden_at` column the threads table does not have and died, so
+  the hide-thread route never worked. Locking now means `locked_at`, so a
+  thread whose state said locked without a lock time is really locked.
+- **An author's thread delete, restore or move no longer goes through after
+  a moderator locked or hid the thread** between the check and the write:
+  under the row lock it is refused (403 or 404), recorded against the
+  command id.
+
+- **Readiness no longer reports a shared cache that is not there**: with an
+  in-process L2 the tiered cache's ping answers 0, so readiness says
+  `local-fallback`. A realtime listener's dying snapshot no longer overwrites
+  the error that made it degraded.
+
+- **`scheduled-jobs` printed `attachments=ARRAY(0x...)`** and its `--json`
+  carried each deleted attachment's row; it now counts them. `migrate
+  --plan` outside the app root, a malformed setting in `os-preflight`, and a
+  `partition-maintenance` failure without `--json` now exit 1 with a redacted
+  reason instead of 2, 255 or a stack location.
+
+- **A refused byte range (416) or a proxy error page is no longer cached for
+  a year** under a fingerprinted asset URL: the app sends a lifetime only on
+  200, 206 and 304, nginx no longer adds it to its own error pages, and Caddy
+  serves only existing files from `/assets/`.
+
+- **Search time filters keep their meaning**: a time with no offset is read
+  in the database session's zone, as a day is, not as UTC; fractional seconds
+  are kept to the microsecond instead of rounding into the next second.
+
+- **Malformed search filters are ignored instead of reaching PostgreSQL**
+  (a non-uuid id, a date that is not a day or an RFC 3339 time, an offset
+  beyond +/-23:59); `to=<day>` includes the whole day. Each step of a console
+  search rebuild records its next step and outbox message in one transaction.
+  `GPFORUM_SEARCH_STATEMENT_TIMEOUT_MS` is lowered to the global statement
+  timeout when that is lower.
+
+- **A mark-read whose badge count or NOTIFY fails after the write committed
+  gets the write's own answer**, not a 500; inside a post's transaction a
+  failed count no longer rolls the post back (`badge_failures`).
+- **A realtime listener whose snapshot dies no longer takes down /metrics or
+  the console**; `/metrics` shows `realtime_listener.status` and
+  `last_error`, and each outage is logged once.
+- **An unknown notification channel is refused** (400, nothing saved)
+  instead of silently turning off a member's in-app notifications;
+  `enabled_channels` applies the defaults.
+
+- **"Purge page cache" no longer reports "purged" when GlifiStore was paused
+  or failing**: the result and its audit row record `purged_locally` and the
+  tags not reached (they expire within their TTL).
+- **Junk URLs no longer create public-cache entries**: a wrong thread slug or
+  an id written another way gets a 301 to the real URL, a trailing slash or a
+  percent-escaped character shares the page's entry, and `?limit=` is keyed
+  by the page size shown. The tiered cache's readiness ping no longer dies on
+  an in-process L2; `SharedCache->try_connect`, unused, is removed.
+
+- **Two administrators revoking the same role binding at once no longer both
+  succeed**: the second waits on the row lock and reports the binding as
+  already revoked, with one revocation time and one audit entry. Re-attaching
+  a permission whose audit entry was lost writes it even when another
+  permission of the role was audited, and an id spelled in upper case, in
+  braces or without hyphens no longer writes a duplicate entry.
+
+- **A post edit, delete or restore, or a thread title edit, no longer lands
+  after a moderator locked the thread or hid the post** (or its author
+  deleted it) between the check and the write. Under the row locks the store
+  checks again and answers as the first check would: 403 `thread is locked`
+  or `post is hidden`, 404 `post not found` or `thread not found`, recorded
+  against the command id so a retry gets the same answer. An edit waits for
+  moderation on its thread, never for replies in flight.
+- **A reply waiting while the thread's author deleted the thread is
+  refused** with 404 instead of landing in the deleted thread (with its
+  mentions and feed items). The author can still reply to their own deleted
+  thread.
+
+- **A cached public page with a character past Latin-1 failed with a 500**
+  (a dash, a curly quote or an emoji in a thread title: "Wide character"),
+  and accented text on cached pages reached the browser as Latin-1 under a
+  UTF-8 header, so Italian visitors saw broken letters. The page cache now
+  keeps, hashes and sends UTF-8 bytes; entries cached by the previous
+  release are rebuilt on their next request.
+
+- **A moderation purge that landed while a page was being computed could
+  leave the hidden content in GlifiStore until its TTL.** Tag tokens are now
+  read before the computation (a ticket), so a purge in between retires the
+  entry. A public page miss costs a few more token reads, and the first page
+  rendered under a tag with no token stays in the process-local cache only.
+- **`/categories` and `/categories?limit=25` shared one cached page**, so an
+  anonymous visitor could get a truncated category index. Each limit has its
+  own entry.
+
+- **SMTP relays that require a login work.** `Net::SMTP` answers `AUTH`
+  only through `Authen::SASL`, which it loads at run time and which nothing
+  declared, so every installation with `GPFORUM_SMTP_USERNAME` failed at the
+  first message: sign-up confirmations, password resets and e-mail changes.
+  `Authen::SASL` 2.2100 is now in the lock; `t/215-smtp-authentication.t`
+  sends through a local relay that asks for `AUTH PLAIN`, and fails without
+  it. Run `make install-deps-postgres` (or `script/bootstrap-deps --postgres`).
+
+- **A process that registered for cache invalidations while the database
+  was unreachable, or inside a transaction, now clears its local cache once
+  its LISTEN takes effect**; before, a hidden post it had cached meanwhile
+  could stay visible until the TTL.
+- **A realtime broadcast whose readability check fails no longer aborts the
+  listener's poll**: the other notifications are still delivered, badges are
+  still re-sent after a reconnect, and the failed event is left to the outbox
+  backstop (`broadcast_failures`). Badges no longer crowd thread hints out of
+  the listener's duplicate filter, which made the backstop send hints twice.
+- **The query-plan gate checks search with the configured
+  `GPFORUM_SEARCH_CANDIDATE_LIMIT`**, not the default 1000: evidence for a
+  forum with another cap described a query it never sends.
+
+- **Realtime and cache invalidation no longer steal each other's
+  notifications** (ADR 0111). The cache bus and the realtime listener read
+  the same connection's notification queue and took each other's messages: a
+  purge the listener took left hidden content in that process's cache. One
+  queue per process now routes by channel. After a reconnect -- including to
+  a backend that reuses the old PID, as a PostgreSQL restarted in a fresh
+  container does -- it listens again, clears the local cache once and
+  re-sends badge counts. A process that cannot listen (pointed at a standby)
+  clears its local cache on every read until it can (`listen_failures` in
+  `/metrics`).
+- **Every badge reaches every process and node**, through `NOTIFY`; a badge
+  changed by a web request used to reach only that process's sockets.
+- **The realtime backstop no longer replays seven days of events** after a
+  deploy or worker recycle: it starts at the head, polls only while the
+  process has sockets, and a failed poll keeps its place.
+- **A thread restored after being hidden no longer drops out of search**
+  when two dispatchers deliver the hide after the restore: each removal step
+  reads the thread again under its locks.
+
+- **`script/gpforum-carton exec prove -v` printed Carton's version** once
+  Carton was installed: real `carton exec` took the command's options as its
+  own, so `make integration` ran nothing. The wrapper now runs `exec` itself
+  in every case, pinned to the validated Perl.
+- **`script/system-preflight` reported perlcritic missing** on hosts where it
+  lives in `local/`, as the gates run it. It now asks the wrapper.
+
+- **A reply no longer lands in a thread locked or hidden while it was being
+  sent.** The reply re-reads the thread under its lock and is refused with
+  403 "thread is locked" or 404 "thread not found"; a retry with the same
+  command id gets the same answer (ADR 0111).
+- **A moderation purge could miss a cached page, and bring back a hidden
+  post.** Two cache writes at the same moment lost each other's entry in a
+  tag's member list in GlifiStore. A tag is now a token: invalidating it is
+  one ERASE, and an entry whose token changed is a miss. Pages cached before
+  the upgrade miss once.
+- **Erasing a GlifiStore key that was already absent counted as a failure**
+  and dropped the connection, on almost every post. It is now a success;
+  only transport, availability and protocol errors drop the connection.
+- **A page copied from GlifiStore into a process's own cache outlived the
+  GlifiStore entry** by up to one TTL. It now expires with it. The anonymous
+  category list is now shared through GlifiStore, and a page miss looks the
+  page up once, not twice.
+
+- **An English visitor could be served the Italian page.** The public page
+  cache's key named neither the language nor the theme: the first visitor's
+  page was served to everyone after. The key now holds both, and `Vary`
+  names `Accept-Language`.
+- **`?after=` with any junk failed the page on PostgreSQL** (an invalid
+  timestamp). A cursor is now checked before it reaches SQL; a bad one shows
+  the first page.
+
+- **"Latest activity" is latest activity.** `threads.last_activity_at` had
+  no writer, so the home page, category pages, sitemap and feed ordered
+  threads by creation. A reply now moves its thread up, from the outbox
+  (`ThreadActivity`, off the reply's transaction so a busy thread's row is
+  not locked per reply); migration 046 sets existing threads to their
+  latest visible post.
+- **Autocomplete suggests each thread once.** A post's search document
+  carries its thread's title, so a thread with many replies filled every
+  suggestion with the same title.
+- **Search rebuild review fixes.** A rebuild racing the live search handler
+  could write an older document over a newer one -- a hidden post
+  searchable again; documents are now written under a lock each. `--entity
+  thread` left a dead thread's posts searchable. The prune decided from one
+  snapshot and could drop a post restored meanwhile. `--status` printed its
+  timestamp with a space, breaking its `key=value` line.
+- **`bin/gpforum` exits with its command's status.** Mojolicious ignores a
+  command's return value, so misuse through the front door exited 0.
+- **Fix: search missed a thread's replies after a rename or a move.** A
+  post's search document carries its thread's title and category; renaming or
+  moving the thread now reindexes its posts.
+- **Fix: notifications to some subscribers could be dropped for good.** When
+  a reply's fanout failed for a recipient, the event was still marked done;
+  the handler now fails so the outbox retries, and recipients already served
+  are duplicates by the inbox's primary key.
+- **Fix: a retried session handed the cookie a token that was never stored**
+  (after a session-hash collision), so the new login was invalid at once.
+- **Fix: re-recording a stored event failed on PostgreSQL.** The reuse path
+  read the stored row as a hash, which only the test doubles return, and
+  built its outbox row with no event.
+- **Fix: marking a notification read with a malformed id answered 503**; it
+  is now 404.
+- **Fix: page defects.** Thread and category breadcrumbs now end at the page
+  (the thread's names its category); the search page states its help once;
+  metadata lines no longer uppercase usernames.
+- **Fix: data export failed for members with more than 65,535 posts.** Post
+  bodies were read with one bound parameter per post, past libpq's limit;
+  they are now read in batches of 10,000.
+- **Fix: a failed command could commit half its work and never be retried.**
+  Every workflow that runs under a command id caught its store's exception
+  inside the command's transaction and returned "failed", which then
+  committed whatever had been written before the failure and stored
+  "failed" as the command id's answer: retrying the same form could never
+  succeed. `CommandIdempotency` now rolls a failed command back and keeps
+  no answer for it.
+- **Fix: `SAVEPOINT savepoint_0` lines in the production log.** The query
+  statistics object inherited DBIx::Class's printer, and with statistics on
+  for the whole process every nested transaction wrote two lines to STDERR.
+- **Fix: a failed admin write could half-commit.** The admin workflow
+  caught a store's exception inside the command's transaction, which then
+  committed what the store had written before failing and stored "failed"
+  as the command id's answer, so a retry with the same form could not
+  succeed. The exception now rolls the transaction back.
+- **Fix: `/readyz` died whenever uploads were not scanned.** With
+  `GPFORUM_ANTIVIRUS=none` -- the default outside staging and production --
+  the readiness helper was built with an empty list in place of the
+  antivirus, which shifted every later argument out of place, and each
+  probe failed with "Can't locate object method". Introduced with ADR 0108;
+  `t/69` now pins the wiring.
+- **Fix: attachment uploads failed on PostgreSQL.** Recording an upload's
+  verdict wrote the scanner's name (`local-sniffer`) into `event_log.actor_id`,
+  a `uuid` column, and PostgreSQL rejected the insert, so every upload failed.
+  The unit doubles accept any string and no integration test had uploaded a
+  file. A verdict is now a system action with a NULL actor and a `scanned_by`
+  payload field, and `t/integration/postgres-attachment-scan.t` uploads end to
+  end against PostgreSQL.
+- Add `t/integration/postgres-idempotency.t`: skippable-unless-DSN two-connection
+  evidence for concurrent `event_idempotency_keys` `mark_done` and reputation
+  source unique races inside open `txn_do`. `EventIdempotencyStore` and
+  `ReputationLedger` wrap inserts with `UniqueConflict->attempt` so unique
+  violations do not abort the outer transaction on live PostgreSQL.
+- Add `t/integration/postgres-concurrency.t`: skippable-unless-DSN evidence
+  with two real PostgreSQL connections for command_log, bookmark,
+  subscription, open report, moderation hide, audit chain, privacy approval,
+  and identity token consume races; wire it into CI beside `postgres.t`.
+  `UniqueConflict->attempt` wraps inserts in a savepoint so unique races can
+  replay inside an open `txn_do` on real PostgreSQL. Command-log payload
+  updates read inflated JSON accessors, and identity token/session expiry
+  compares parsed epochs so PostgreSQL timestamptz text does not false-expire.
+- Plugin install remints `plugin_id` once when the unique primary key
+  conflicts, and does not return another plugin.
+- Plugin install reuses a leftover `plugin_id` with this name and version
+  and registers missing hooks.
+- Plugin hook writes remint `hook_id` once when the unique primary key
+  conflicts, and do not return another hook.
+- Plugin hook writes reuse a leftover `hook_id` with this plugin and hook
+  name and register missing hooks.
+- Import job create remints `import_job_id` once when the unique primary
+  key conflicts, and does not return another job.
+- Import failure recording remints `import_failure_id` once when the unique
+  primary key conflicts, and does not return another failure.
+- Import failure recording reuses a leftover `import_failure_id` with this
+  source and does not insert a second review row.
+- Role catalog writes remint `role_id` once when the unique primary key
+  conflicts, and do not return another role.
+- Role catalog writes reuse a leftover `role_id` with this name and insert
+  the missing audit.
+- Permission catalog writes remint `permission_id` once when the unique
+  primary key conflicts, and do not return another permission.
+- Permission catalog writes reuse a leftover `permission_id` with this
+  resource and action and insert the missing audit.
+- Role catalog attach writes reuse a leftover grant with this role and
+  permission and insert the missing audit.
+- Role binding writes remint `binding_id` once when the unique primary key
+  conflicts, and do not return another binding.
+- Role binding writes reuse a leftover `binding_id` with this active
+  binding and insert the missing audit.
+- Legacy id mapping remints `legacy_id_map_id` once when the unique primary
+  key conflicts, and does not return another mapping.
+- Legacy id mapping reuses a leftover `legacy_id_map_id` with this source
+  and keeps the original native id.
+- Category create remints `category_id` once when the unique primary key
+  conflicts, and does not return another category.
+- Category create reuses a leftover `category_id` with this space and slug
+  and inserts the missing event.
+- Default-space create remints `space_id` once when the unique primary key
+  conflicts, and does not return another space.
+- Default-space create reuses a leftover `space_id` with this slug and
+  does not insert a second space.
+- Mention recording remints `mention_id` once when the unique primary key
+  conflicts, and does not return another mention.
+- Mention recording reuses a leftover `mention_id` with this source and
+  mentioned user and inserts the missing notification.
+- Bookmark save remints `bookmark_id` once when the unique primary key
+  conflicts, and does not return another bookmark.
+- Bookmark save reuses a leftover `bookmark_id` with this user and target
+  and does not insert a second bookmark.
+- Subscription save remints `subscription_id` once when the unique primary
+  key conflicts, and does not return another subscription.
+- Subscription save reuses a leftover `subscription_id` with this user and
+  target and does not insert a second subscription.
+- Report create remints `report_id` once when the unique primary key
+  conflicts, and does not return another report.
+- Report create reuses a leftover `report_id` with this reporter and
+  target and inserts the missing event.
+- Moderation action writes remint `moderation_action_id` once when the
+  unique primary key conflicts, and do not return another action.
+- Moderation action writes reuse a leftover `moderation_action_id` with
+  this command_id and insert the missing event.
+- Retention hold create remints `retention_hold_id` once when the unique
+  primary key conflicts, and does not return another hold.
+- Retention hold create reuses a leftover `retention_hold_id` with this
+  resource and inserts the missing event.
+- Deletion request create remints `deletion_request_id` once when the
+  unique primary key conflicts, and does not return another request.
+- Deletion request create reuses a leftover `deletion_request_id` with
+  this open resource and inserts the missing event.
+- Erasure job create remints `erasure_job_id` once when the unique primary
+  key conflicts, and does not return another job.
+- Erasure job create reuses a leftover `erasure_job_id` with this request
+  and inserts the missing approval action.
+- Export request create remints `export_request_id` once when the unique
+  primary key conflicts, and does not return another request.
+- Export request create reuses a leftover `export_request_id` with this
+  pending unique and inserts the missing event.
+- Deletion action writes remint `deletion_action_id` once when the unique
+  primary key conflicts, and do not return another action.
+- Dead-letter recording remints `dead_letter_id` once when the unique
+  primary key conflicts, and does not return another review row.
+- Dead-letter recording reuses a leftover `dead_letter_id` with this
+  source and does not insert a second review row.
+- Reputation ledger writes remint `reputation_event_id` once when the unique
+  primary key conflicts, and do not return another event.
+- Reputation ledger writes reuse a leftover `reputation_event_id` with this
+  source and insert the missing snapshot.
+- Projection generation start remints `generation_id` once when the unique
+  primary key conflicts, and does not return another generation.
+- Projection generation start reuses a leftover `generation_id` with this
+  source and does not insert a second generation.
+- Thread create remints the opening `post_id` once when the unique primary
+  key is occupied by another post, and does not return that post.
+- Thread create reuses a leftover opening `post_id` with this thread and
+  inserts the missing body.
+- Thread create remints the opening `body_id` once when the unique primary
+  key is occupied by another body, and does not reuse that body.
+- Thread create reuses a leftover opening `body_id` with this post and
+  inserts the missing revision.
+- Thread create remints the opening `revision_id` once when the unique
+  primary key is occupied by another revision, and does not reuse that
+  revision.
+- Thread create reuses a leftover opening `revision_id` with this post and
+  inserts the missing counter.
+- Thread create reuses this thread's leftover opening counter when the unique
+  primary key conflicts, and does not abort the create.
+- Reply create remints `post_id` once when the unique primary key is occupied
+  by another post, and does not return that post.
+- Reply create reuses a leftover `post_id` with this thread and inserts the
+  missing body.
+- Reply create remints `body_id` once when the unique primary key is occupied
+  by another body, and does not reuse that body.
+- Reply create reuses a leftover `body_id` with this post and inserts the
+  missing revision.
+- Reply create remints `revision_id` once when the unique primary key is
+  occupied by another revision, and does not reuse that revision.
+- Reply create reuses a leftover `revision_id` with this post and inserts
+  the missing counter shard.
+- Post edit remints `body_id` once when the unique primary key is occupied
+  by another body, and does not reuse that body.
+- Post edit reuses a leftover `body_id` with this post and inserts the
+  missing revision.
+- Post edit remints `revision_id` once when the unique primary key is occupied
+  by another revision, and does not reuse that revision.
+- Post edit reuses a leftover `revision_id` with this post and applies
+  missing pointers.
+- Thread create remints `thread_id` once when the unique primary key is
+  occupied by another thread, and does not return that thread.
+- Thread create reuses a leftover `thread_id` with this category and slug
+  and inserts the missing opening post.
+- Event recorder remints `audit_id` once when the unique primary key
+  conflicts, and does not return another audit record.
+- Event recorder remints `event_id` once when the unique primary key is
+  occupied by another event, and does not return that event.
+- Event recorder reuses this write's leftover `event_id` row when the unique
+  primary key conflicts, inserts the missing outbox, and does not insert a
+  second event.
+- Notification delivery reuses a leftover `notifications_pkey` row and
+  inserts the missing inbox, and does not remint `notification_id`.
+- Read-state writes reuse a leftover `thread_read_state_pkey` row and
+  insert the missing delta.
+- Event recorder remints `outbox_id` once when the unique primary key
+  conflicts, and does not return another event's handoff.
+- Event recorder reuses a leftover `outbox_id` with this handoff key and
+  does not insert a second outbox row.
+- Suspension create remints `suspension_id` once when the unique primary
+  key conflicts, and does not return another suspension.
+- Plugin failure recording remints `plugin_failure_id` once when the unique
+  primary key conflicts, and does not return another failure.
+- Event recorder reuses outbox rows by unique `idempotency_key`, and does
+  not treat another event's `event_id` as the same handoff.
+- Attachment variant writes remint `attachment_variant_id` once when the
+  unique primary key conflicts, and do not return another variant.
+- Attachment variant writes reuse a leftover `attachment_variant_id` with
+  this type and object key and do not insert a second variant.
+- Attachment link writes remint `attachment_link_id` once when the unique
+  primary key conflicts, and do not return another link.
+- Attachment link writes reuse a leftover `attachment_link_id` with this
+  target and do not insert a second link.
+- Attachment intent writes remint `attachment_id` and `object_key` once
+  when the unique primary key conflicts with a different object, and do
+  not return another attachment.
+- Attachment intent writes reuse a leftover `attachment_id` with this
+  object key and insert the missing event.
+- Registration reuses a leftover user `id` with this username and email
+  and inserts the missing credential.
+- Password credential writes reuse a leftover credential `id` with this
+  user and do not insert a second active secret.
+- Command log writes remint `command_id` once when the unique primary key
+  conflicts, and do not replay another command.
+- Command log writes reuse a leftover `command_id` with this idempotency
+  key and finish the command.
+- Identity token writes reuse a leftover `token_id` with this user and
+  hash and do not insert a second token.
+- Session writes reuse a leftover `session_id` with this user and hash
+  and do not insert a second session.
+- Post edit reuses unique `body_id` and `revision_id` rows and does not
+  write a second event on conflict.
+- Reply create reuses the unique `post_id` row and does not insert a
+  second event on conflict.
+- Email-change confirm returns `email_already_registered` on a unique
+  `email_normalized` race and does not restamp the user.
+- Thread create reuses the unique `thread_id` row and does not insert a
+  second opening post or event on conflict.
+- Notification mark-read reuses the unique
+  `(notification_id, recipient_user_id)` row and does not insert a second
+  read on conflict.
+- Query budget sync reuses the unique `endpoint_name` row and does not
+  rewrite the catalog when max queries, transactions, and notes already
+  match.
+- Trust snapshot writes apply this event's delta to the unique `user_id`
+  winner and do not drop the score increment.
+- Projection offset writes reuse the unique `projection_name` row and do
+  not restamp `updated_at` when the event already matches.
+- Reply counter shard writes apply the delta to the unique
+  `(thread_id, shard_id)` winner and do not drop the increment.
+- Password credential writes reuse the unique active `(user_id)` password
+  row and do not insert a second active secret on conflict.
+- Post edits retry revision allocation once when the unique
+  `(post_id, revision_number)` key conflicts, and do not drop the edit.
+- Reply writes retry position allocation once when the unique
+  `(thread_id, position)` key conflicts, and do not drop the reply.
+- Projection generation start reuses the unique `(projection_name,
+  built_from_event_id)` row and does not insert a second rebuild on
+  conflict.
+- Event recorder writes reuse the unique outbox `idempotency_key` and do
+  not insert a second EventLog or outbox row on conflict.
+- Import failure writes reuse the unique `(import_job_id,
+  source_record_type, source_record_id)` row and do not insert a second
+  review row on conflict.
+- Dead-letter writes reuse the unique `(source_table, source_id)` row and
+  do not insert a second review row on conflict.
+- Attachment variant writes reuse the unique `object_key` blob and do not
+  insert a second variant on conflict.
+- Attachment intent writes reuse the unique `object_key` row and do not
+  insert a second event or audit on conflict.
+- Projection generation activate retries the cutover once when the one-active
+  unique index conflicts, and skips if this generation already won.
+- Plugin install reuses unique `(plugin_id, hook_name)` hook rows and does
+  not insert a second hook set on conflict.
+- Thread read-state writes reuse the unique `(user_id, thread_id)` row
+  and keep the original `last_read_at` on conflict when the stored
+  position is already at least the requested one.
+- Feed projection reuses the unique `(user_id, item_type, item_id)` row
+  and keeps the original copy on conflict when created_at, rank, and
+  version columns match.
+- Notification preference writes reuse the unique `(user_id, channel)` row
+  and keep the original `updated_at` on conflict when the values match.
+- Search index reuses the unique `(entity_type, entity_id)` document and
+  keeps the original `indexed_at` on conflict when the copy is unchanged.
+- Notification delivery reuses the unique inbox `(recipient, notification)`
+  row and does not insert a second notification on conflict.
+- Attachment link and variant writes reuse the unique target or
+  `(attachment_id, variant_type)` row on conflict.
+- Mention recording reuses the unique `(source_type, source_id,
+  mentioned_user_id)` row and does not notify again on conflict.
+- Role binding create reuses the unique active `(user, role, resource,
+  space)` row and does not insert a second audit on conflict.
+- Default-space create reuses the unique `general` slug and does not insert
+  a second space on conflict.
+- Legacy id mapping reuses the unique `(legacy_type, legacy_id)` row and
+  keeps the original native id.
+- Category create reuses the unique `(space_id, slug)` row and does not
+  insert a second event on conflict.
+- Role, permission, and attach writes reuse unique catalog rows and do not
+  insert a second audit on conflict.
+- Plugin install reuses the unique `(name, version)` row and does not insert
+  a second plugin or hook set.
+- Concurrent deletion approval reuses the unique erasure job and does not
+  insert a second approval action.
+- Already-done erasure retries complete the deletion request if it is still
+  open, skip the request restamp when already completed, and do not emit a
+  second action.
+- Incomplete legal-hold erasure retries restore `held` status and
+  `last_error` without a second event, and skip those writes when they
+  already match.
+- Already-revoked suspension retries restore a still-suspended user and skip
+  the user restamp when status is already active.
+- Identity mail outbox retry after send and before `mark_done` resends
+  from the outbox payload. EventLog still omits the raw token.
+- A registration unique race on username or email returns the same
+  duplicate field errors and does not insert a second pending user.
+- Hide, restore, lock, and unlock that are already applied do not insert a
+  second `moderation_actions` row, event, audit, or outbox message. A new
+  `command_id` against the same target state returns the existing action.
+- Mute, unsubscribe, and bookmark-remove keep the original timestamp when
+  the store is retried and the row is already muted, revoked, or deleted.
+  A second store call does not write a new stamp. HTTP `command_id` replay
+  still avoids a second persist for the same command.
+- Reputation events require `source_id`. A missing source is skipped without
+  applying a delta. Existing null `source_id` rows backfill from
+  `reputation_event_id`. The unique index covers every row, not only
+  `source_id IS NOT NULL`. The reputation worker uses `aggregate_id` or
+  falls back to `event_id`.
+- Identity store and command-log failures return HTTP 503 without leaking
+  the exception. A lost register, login, logout, password-change, locale,
+  theme, settings, attachment upload, attachment delete, token-issuance,
+  or token-consume response retried with the same `command_id` does not
+  create a second pending account, open a second session, revoke a session
+  twice, rotate a password twice, persist a preference twice, store a
+  second file, soft-delete twice, issue a second token, or consume a token
+  twice.
+- Restoring a hidden or author-deleted thread reindexes the thread search
+  document and every post in that thread. `thread.deleted` and
+  `thread.hidden` already removed those post documents.
+- Member data export now copies real posts, attachments, notifications,
+  subscriptions, preferences, and profile fields (including email) into
+  the completed `ExportRequest` manifest. Placeholder `{index}` rows are
+  gone. Storage object keys and password hashes stay out of the bundle.
+  EventLog still records counts only. `GET /privacy/export/:id` downloads
+  the JSON for the signed-in subject; the dashboard links completed
+  exports.
+- Identity password-reset, email-change, and verification mail is queued
+  on the outbox in the same transaction as token issuance. EventLog keeps
+  `kind` and `token_id` only; the raw token lives on the outbox `mail`
+  payload until the `IdentityMail` worker delivers it. A crash after
+  issuance no longer drops the message.
+- An outbox worker that claims a row and crashes before dispatch leaves
+  the message `running`. Another worker does not take a fresh lock; after
+  the lock expires the row is reclaimed and delivered once.
+- Erasure that fails after credential and session revocation rolls back
+  the user identity and leaves the job pending. A later `complete_job`
+  anonymizes the member and revokes access.
+- Thread, report, hide, and privacy approval writes roll back on a
+  statement timeout during EventLog, outbox, or audit insert. Domain
+  mutations inside the transaction are restored; no event, outbox, or
+  audit row commits.
+- A second `complete_job` while a legal hold still blocks erasure replays
+  the blocked result. The job stays pending with the same `last_error`;
+  no second deletion action, event, or audit is written. After the hold
+  ends, a later `complete_job` can finish erasure.
+  `DeletionWorkflow->hold_request` stays four arguments besides the
+  invocant.
+- Reputation events with a `source_id` are unique per
+  `(user_id, source_type, source_id)`. `ReputationLedger->record_event`
+  still skips a sequential duplicate; a unique race reloads the stored
+  event and does not apply the delta twice.
+- `thread.deleted` also removes post search documents and post feed rows
+  for posts in that thread. `Search::Indexer->remove_thread` looks up
+  posts by `thread_id` then deletes each search document;
+  `FeedProjector->remove_thread` deletes the thread feed item plus every
+  post item. Search documents and feed rows still have no `thread_id`
+  column.
+- Outbox worker handlers and the realtime fallback now wrap dispatch in
+  `IdempotentJobRunner` with catalog keys `worker.<name>:{event_id}`.
+  `EventIdempotencyStore` inserts into `event_idempotency_keys` only on
+  `mark_done`, so a crash between `transport->dispatch` and outbox ack
+  retries the message without skipping unfinished side effects. Replay of
+  the same event is absorbed for search, notification, cache, attachment,
+  media, feed, reputation, and realtime.
+- Hidden posts now drop their `user_feed_items` rows through
+  `FeedProjector->remove_item`; restore re-projects the author and thread
+  subscribers with the existing `project_item` API. There is no
+  `thread.hidden` event.
+- Closed HIGH concurrency races on command replay, bookmarks, subscriptions,
+  open reports, moderation actions, and the audit hash chain. Unique
+  violations now replay the winning row, moderation hide/restore/lock take
+  `FOR UPDATE`, and audit appends serialize previous-hash lookup with
+  `pg_advisory_xact_lock` instead of swallowing chain-break errors.
+  `migrations/026_concurrency_uniqueness.sql` makes the open-report unique
+  index real and unique-indexes moderation `command_id`.
+- Category create and update now invalidate the public category-list cache
+  tags through the existing `CacheInvalidation` worker, so later admin
+  edits do not wait for the 30s TTL.
+- Admin category create and update now go through `Admin::Workflow` and
+  `Admin::CategoryStore`, so the first administrator can add the first
+  forum category on a fresh install without `PerformanceSeed`.
+- Deploy units and reverse-proxy samples can start after
+  `carton install --deployment`: supervisors invoke `script/gpforum-carton`
+  (not the non-existent `local/bin/carton`), Nginx proxies
+  `/attachments/:id/download` instead of intercepting `/attachments/` as
+  `internal`, and Nginx/Caddy serve `/assets/` from the repo `assets/` tree.
+  GlifiStore remains an operator-supplied server plus `GlifiStore::Client`
+  (not a Carton/PAUSE pin). systemd units create `/run/gpforum` with
+  `RuntimeDirectory`.
+- Search and moderation/admin optional-query hashes no longer drop the
+  following keys when a missing next-page size or empty optional param
+  used a bare `return` (Perl empty list). `ForumAccess::search_more_limit`
+  and controller `optional_param` now return an explicit undef.
+
+### Development
+
+- **`Command::Setup` is six files.** Its 1,872 lines are `Setup::Core` (saying,
+  asking, root and sudo), `Setup::Answers` (reading and checking the answers),
+  `Setup::Files` (the service account, the link, the environment file and the
+  dry run), `Setup::Database` and `Setup::Report`, each inheriting the one
+  before; `Command::Setup` keeps the entry points (`run`, `usage_text`, the
+  option parsing and the orchestration in `_setup`) and the two defaults the
+  tests replace (`migrate`, `owner_check`). Shared helpers lost their
+  underscore; `_say`, `_said`, `_text`, `_given`, `_runner`, `_load` and a few
+  others became `say_text`, `said_text`, `decode_text`, `stated`, `runner`,
+  `load_environment`, so none is named like a builtin.
+- **`Privacy::DeletionWorkflow` is five files.** Its 1,775 lines are
+  `Deletion::Core` (the privacy rows, status changes, action record and
+  event with its audit entry), `Deletion::Holds`, `Deletion::Requests` and
+  `Deletion::Erasure`, each inheriting the one before; `DeletionWorkflow` keeps
+  its collaborators and inherits them all. Shared helpers lost their leading
+  underscore; four whose names collided with public ones were renamed
+  (`open_hold`, `find_privacy_row_p`, `insert_privacy_row_p`,
+  `update_privacy_row_p`, `latest_row_p`). `t/86` checks the transaction, event
+  and audit boundaries over all the parts.
+- **A flaky privacy test no longer depends on the clock.**
+  `postgres-privacy-write-promises.t` compared two members' action lists in
+  `created_at` order; the column is whole seconds, so two actions in the same
+  second could swap. It orders by type.
+- **`Identity::AccountStore` is four files.** Its 1,665 lines are now
+  `Account::Core` (the lookups, token spending, audit and mail records the
+  operations share), `Account::Passwords`, `Account::EmailChange` and
+  `Account::EmailVerify`, each inheriting the one before; `AccountStore` keeps
+  the collaborators it requires and inherits them all, so `Identity::Store` and
+  every caller see the same object. The helpers the parts share lost their
+  leading underscore (and have POD) because the critic rightly flags a private
+  sub that no code in its own file calls. No behaviour changed; the three
+  `ResultsetBoundary` entries moved with their code to `Account/Core.pm`.
+- **`SqlFunctionCatalogue` is split by domain.** Its 381 entries (2,612 lines in
+  one hash) live in nine modules under `Infrastructure/SqlFunctionCatalogue/`
+  (Admin, Attachment, Community, Forum, Identity, Moderation, Notification,
+  Operations, Search); the catalogue merges them and keeps a small `%FUNCTION`
+  of its own, which is where `gpforum generate gpforum_service` still adds a new
+  entry. No entry changed.
+- **`migrations/README.md` lists every file up to 2053.** It stopped at 2041 and
+  called the schema "26 files"; it now names the baseline (2000-2025) and the
+  twelve changes after 2041, and says that documents citing the older 001-135
+  and 1000-1058 numbers refer to definitions now found in the 2000 series.
+  The PostgreSQL audit's banner says the same.
+- **Every `## no critic` in `lib/` now says why.** 128 were reviewed one by
+  one. Forty-one rethrows (`die $error`, to keep the original location) and the
+  `local` guards already gave a reason; the 36 front-door commands' lower-case
+  package names (`GPForum::CLI::dead_letter_check`) and six others (a header
+  whitelist, a username class, three `can()` bypasses, the DBI `print`
+  callback) did not, and do now. None was removable: Perl::Critic checks a
+  package name by component, so a configuration exemption would have let every
+  lower-case component through the tree.
+- **More bare `croak` calls are typed.** Sixteen modules whose message ended in
+  `$OS_ERROR` or `$ERRNO` (the environment-file edit, the service account,
+  provisioning, the Unix listener, the systemd notifier, the filesystem storage)
+  throw `X::Io`. The contract refusals of `WebSub`, integration readiness, the
+  reverse-proxy benchmark, API role provisioning, anonymize and the digest queue
+  are `X::Argument`; the DKIM and Push key checks are `X::Config`. Messages are
+  unchanged. These now declare `permanent` where a bare string read as
+  `transient` to the outbox, which is what a refusal of bad input should say.
+- **Six more private copies of "read a column from a row or a hash" are
+  `Row::column_of`.** `RegistrationStore`, `Community::Workflow`,
+  `Privacy::Record`, `Attachment::Record`, `Identity::Support::column` and
+  `AuditRecord::column` each hand-rolled the hash-then-`get_column` check; they
+  now call the one helper. Behaviour is the same for the rows they receive.
+- **`GPForum::Config` no longer holds the table of settings.** The row for
+  each setting (variable, default, type, section, summary, rule name) moved to
+  `GPForum::Config::Settings`; `Config` keeps the reading, the rules and the
+  problems. 2,700 lines became 1,435 and 1,397. No setting changed; `t/212`
+  reads both sources when it checks the settings page against the variables.
+- **File failures have a class: `GPForum::X::Io` (`t/887`).** A local read,
+  write, sync, link or lock that failed is `transient`, as a bare `croak` was,
+  so the outbox still retries it, but the exception now says what it is. The
+  post signer's and the Push key ring's `cannot ...` failures use it; the key
+  ring's unsafe directory is `X::Config` and its "keys already exist" is
+  `X::Argument`. Messages are unchanged.
+- **Atomic file writes and the service lock fail as `X::Io`.** `OS::Filesystem`
+  (temporary file, write, sync, rename, directory sync) and the service
+  manager's lock and PID file operations throw it; messages are unchanged.
+  The refusals that need an operator (a symlinked PID file, a live PID, a
+  held lock) stay as they were.
+- **Failed writes, reads and closes in commands and probes are `X::Io`.** About
+  sixty modules (the `Command::*` writers of reports and evidence, the CLI
+  entry points, the operations probes, benchmark helpers, the file reader and
+  filesystem storage) throw it for a `cannot|failed to write|read|open|close`
+  failure. Messages are unchanged. `Infrastructure::PerlRuntime` keeps to core
+  modules and is untouched; `HypnotoadBenchmark` and two reads in
+  `PostgresPerformance` stay `croak` where the heredoc and the filehandle
+  span made the critic's brief-open rule fire.
+- **Eleven bare `croak` calls are typed exceptions (`t/887`).** The native
+  supervisor probe's seven contract failures are `GPForum::X::Argument`; the
+  post signer's four refusals of an unusable key are `GPForum::X::Config`.
+  Messages are unchanged. Only broken contracts and bad configuration moved:
+  a typed exception declares its `failure_type` (`permanent`), where a bare
+  string was `transient` to the outbox, so the file and descriptor failures
+  (`cannot write ...`) stay `croak` until each has a class that says they may
+  be retried.
+
+- **Fewer private copies of the same helpers.** Three modules read a row's
+  column with their own `_column`; they now use `column_of`
+  (`GPForum::Infrastructure::Row`). Five modules kept their own copy of the
+  code that strips Perl's ` at FILE line N.` from an error; they now use
+  `error_text` (`GPForum::Infrastructure::Text`, `t/759`), each keeping its
+  own fallback sentence. Where a copy differed in meaning -- a row double's
+  method, a hash fallback, an exception on a bad row -- it stays.
+
+- **A controller cannot call a service that has no asynchronous twin
+  (`t/886`).** `call_p` fails a request whose service holds a database
+  connection and has no `METHOD_p`; the test now checks every literal
+  `call_p( $self->gp_helper, 'method' )` in the controllers, so the gap shows
+  in the unit tier. All 61 helpers pass today.
+
+- **Consolidation regression is green (2026-11-02).** The complete unit and
+  PostgreSQL tiers, browser clients and performance-evidence contracts pass;
+  [the quality program](docs/QUALITY_PROGRAM.md#consolidation-review-2026-11-02)
+  records the commands, counts and scope. Twelve module preambles now retain
+  Perl's current feature bundle after `Mojo::Base`; tag methods have POD and
+  the new critic violations are fixed without adding baseline exceptions.
+  Cache tests verify that the one permitted live-configuration statement is
+  the configuration read, not a content query. Query budgets count that read
+  and private follow state explicitly; the page test also verifies the real
+  runtime observer, whose five stale endpoint limits are corrected against
+  measured queries. The documentation gate checks files
+  and section anchors across maintained Markdown, including schema guides.
+
+- **Good Phorum is the project name.** GP stands for Good Phorum, with the
+  P in Phorum standing for Perl. The README, maintained documentation and
+  project presentation use the full name; `GP Forum` is the short form.
+  [Naming conventions](docs/BRANDING.md) preserve existing commands,
+  namespaces, settings, paths and contributor attribution.
+
+- **The SQL function layer's documentation states its one retry.** Outside
+  a transaction a call whose connection was lost runs once more, as
+  `dbh_do` does, so an autocommit write -- a session touch, a rate-limit
+  increment -- can land twice if the connection goes between the commit and
+  the read. Kept for parity, now written down.
+
+- **The 2026-10-30 review's last batch: one home for each helper lib/ kept
+  copies of.** `GPForum::Infrastructure::Text` gives `has_text` and
+  `trimmed`, in place of thirty-five and twenty-five copies, seven of them
+  public; the evidence services' error trims use `evidence_trimmed`.
+  `GPForum::Infrastructure::Row` gives `rows_of`, `belongs` and `updated`;
+  `GPForum::Infrastructure::UniqueConflict` gives `conflict_of` and
+  `once_more`; `GPForum::Service::Forum::ContentStore` is the post and thread
+  stores' parent; `GPForum::Service::WorkflowResult` holds the workflows'
+  result, missing-command and logging helpers; `GPForum::Controller::Base`
+  answers `wants_json`, `current_user_id`, `not_found` and `system_failure`
+  for every area; `EventPayload->value`, `SourceFunction->list` and
+  `Web::Access->status_of` replace five, three and five copies. In t/lib, the
+  result-set doubles share `GPForum::Test::TransactionalResultSet`, the
+  copying row doubles `GPForum::Test::CopyingRow`, and seven schema doubles
+  stop restating their parent's empty `storage_accessors`.
+
+- **The 2026-10-30 review's tenth batch, delivery and hygiene.** The raw-SQL
+  outbox claim goes: `Outbox::ClaimQuery`, the dispatcher's driver sniffing
+  and its own guarded `UPDATE`. On PostgreSQL the claim and every write after
+  it go through `api.outbox_claim_ready` and `api.outbox_owned_write`, and
+  the unit tests and the dispatcher benchmark drive them through
+  `GPForum::Test::OutboxFunctions` and `OutboxBenchmarkFunctions`. The Minion
+  registrar's three placeholder aliases, which no release queued, go.
+  `script/architecture-policies` fails on inventory entries it no longer
+  sees as well as on new ones, writes one JSON layout, runs in CI, and its
+  inventory is regenerated: the fourteen "new" violations were old ones
+  re-hashed by edits, and three are fixed. Dead definitions go
+  (`SecondFactor::challenge_seconds`, the drills' formatters and exit rules,
+  `root_name`, seven constants), and t/415 pins the command's text instead.
+  The unsubscribe scopes are one list. Stale migration numbers in the docs
+  and tests, two idle `no critic` names, and ADR 0078 on the single
+  notification mail, at least once by design, are corrected.
+
+- **The 2026-10-30 review's ninth batch, commands and bootstrap.**
+  `GPForum::Command::Usage` gives `read_arguments` and `option_given`, and
+  nine commands lose their copy of the parse-or-misuse block. Getopt::Long
+  leaves the last two commands that used it. Production registers its
+  Minion tasks through the `gp_worker_registrar` helper the tests exercise,
+  not a copy. ENTRYPOINTS.md states the script/ rule without a stale list
+  and points at the exit codes. Warmup's POD and ADR 0121 say the workers
+  inherit the statements' SQL: the prepared statements go with the
+  manager's connection.
+
+- **The 2026-10-30 review's eighth batch, operations tooling.**
+  `GPForum::Service::Operations::EvidenceHost` holds what the staging and
+  deploy drills ask of the host -- running a command, finding a tool,
+  finding the checkout, trimming an error -- in place of five copies that
+  had drifted: a command a signal killed no longer counts as passing, and a
+  checkout that cannot be found is said. `Host->shell_word` and
+  `Host->closing_chmod` replace three quoting copies. PartitionLifecycle and
+  doctor lose raw-SQL fallbacks no caller reached, copies of
+  `api.ops_partition_horizon` and `api.ops_doctor_outbox`.
+  DatabaseProvisioning gives `dsn_values`. `deploy_host_unit_checks`,
+  ServiceFiles' `template_of`, EvidenceValidate's unread `strict`, the
+  deploy drill's stub scripts and dead rewrites, and both drills' unread
+  options go. BackupVerifier has its first test. The architecture check is
+  green again: four one-argument signatures from the third batch name their
+  argument, and two optional attributes say so.
+
+- **The 2026-10-30 review's seventh batch, discovery and attachments.**
+  The single-document sitemap path, its limit and `space_url` go, with the
+  attachment store's uncalled links call and the lifecycle's three
+  test-only subs. t/05 counts a no-transaction migration's statements.
+  `GPForum::Infrastructure::ImageBytes` holds the bounds avatars and
+  thumbnails share. The WebSub test builds a publisher per request, as the
+  application does.
+
+- **The 2026-10-30 review's sixth batch, plans and indexes.** Readiness
+  stops reading `projection_generations`, which nothing ever wrote: its
+  check, Result class, runbook entry and label go, and ADR 0091 withdraws
+  the requirement. The catalogue test derives a retained boundary's
+  arguments from its catalogue entry unless it lists them. The users
+  table's version columns say what they are.
+
+- **The 2026-10-30 review's fifth batch, staff and moderation.** Methods
+  only their own tests reached go: the avatars' shown id, the relation
+  kinds, the message limits, the member notes' page size, the bookmark
+  removal by id with its branch of the stamp function, and a role's
+  permission listing with its function. The target update answers the rows
+  it changed. Two comments move to the subs they describe.
+  `GPForum::Infrastructure::CalendarDate` says whether a day or a timestamp
+  exists. `nested_plan_without_seqscan` in the test harness reads the plans
+  inside a function call; the audit viewer's plan test reads the statement
+  the page runs, not the ORM query production never takes.
+
+- **The 2026-10-30 review's fourth batch.** t/641 and the catalogue's live
+  test refuse an implementation the release reaches that calls an
+  owner-rights boundary. The thread page reads test puts three files on a
+  post, the protocols test reads the signing sweep's plan inside its
+  function, and the community tests race two poll creates, follow a
+  category over a thread set to mentions and deliver a post's and a
+  suspension's every change to the reputation worker.
+  Seven tests the earlier batches touched meet the whole critic gate again:
+  named characters, named counts, and t/753's doubles in t/lib.
+
+- **The 2026-10-30 review's third batch, operations and delivery.**
+  `GPForum::Infrastructure::Id->named_uuid` is the one name-based UUID the
+  notification dispatcher and the realtime mapper use;
+  `GPForum::Service::Operations::NoSharedCache` is the empty shared layer.
+  A staging copy that fails says why; dead branches, stale POD and an
+  orphaned comment go.
+
+- **The 2026-10-30 review's first corrections.** `GPForum::Service::Forum::PostPosition`,
+  its helper and its function go: nothing read the next position but a test,
+  and only the reply's insert may decide it. PostReader no longer reaches
+  for a scoped thread-posts function no caller needed and refuses a page
+  read for two viewers. The savepoint probe reads AutoCommit through the
+  handle as it stands, not the pinged `dbh`, a round trip on every command;
+  EventRecorder asks the storage for `transaction_depth`, the name
+  DBIx::Class keeps, so the doubles drop `txn_depth` and t/454's two TODOs
+  pass. t/641 knows a later migration may drop a function, and keeps the
+  retained boundaries that lack the catalogue's last parameter in one table.
+  The attachment test's thread TODO, which passes, is gone; comments and POD
+  name the functions the release calls and the baseline's migrations.
+
+- Stabilization checks and remaining limits are recorded in
+  [the 2026-10-23 verification](docs/architecture/maintenance-2026-10-23.md),
+  including the complete unit and PostgreSQL tiers and the existing CI
+  capacity failure. The ASVS record closes three requirements on the
+  suspension timestamp and Unicode-password paths, retaining the other gaps.
+
+- **`script/schema-fingerprint` prints a database's schema as sorted facts**,
+  so two databases compare with `diff`: the baseline's proof (ADR 0150). t/641
+  refuses, in every migration, a function that returns a table's row and a
+  function in `api` the catalogue does not reach; t/05 asks every migration
+  that creates a table to comment it, and checks the schema's invariants on
+  the baseline instead of each 0.x file. The tests that replayed 0.x data
+  migrations (045, 046, 049, 051) go with them, the search optimisation test
+  compares the function path with the ORM path instead of retained versions,
+  and `script/bench-sql-functions` loses its paired mode, which only compared
+  the retained search versions, with `GPForum::Infrastructure::SqlFunction::Retained`.
+- **Good Phorum measured against OWASP ASVS 5.0.0, requirement by requirement
+  (ADR 0149).** `docs/security/asvs-5.0.md` lists the 246 requirements in
+  scope, each met, not met or not applicable with its evidence, and ends
+  with the gaps in priority order, the Level 3 areas first. No level is
+  met yet: some Level 1 requirements are not. `t/721-asvs-record.t` fails
+  when a cited file or line no longer exists, a tally disagrees with the
+  rows, or the gap list misses a requirement not met.
+- **The hot pages through the socket, end to end, before and after.**
+  `docs/PERFORMANCE.md` ("Through the socket") records f377541, main
+  before the socket work's statement and accept changes and main after
+  them, five pages and two writes at 1 to 128 clients, with the commands
+  that reproduce them, the decisions on gzip, the session's validation and
+  Hypnotoad's settings, and what is left; ADR 0137 has the end-to-end
+  note. The signed-in thread page: 104 → 149 → 168 requests a second at
+  one client, a p95 of 487 → 333 → 216 ms at 128.
+- **Security scanning is green again: the peer-authentication workflow
+  passes actionlint.** Since that workflow arrived, shellcheck stopped the
+  scan's lint job on two of its lines: it found initdb with `ls` and quoted
+  Perl in single quotes. It now finds initdb with `find`, and the Perl
+  carries a shellcheck note that its `$` signs are Perl's own.
+- **`t/48-browser-security.t` passes when run with `perl` or `prove` alone
+  on macOS and FreeBSD (ADR 0097).** Its production application refused
+  libev's default backend, which Test::Mojo had loaded before anything
+  chose kqueue. The test now loads `GPForum::OS::Reactor` first, which
+  sets the backend as the front door does. It was the only unit test that
+  failed when run without `script/gpforum-carton`.
+- **The 5,000-connection gate can no longer pass without measuring 5,000
+  connections, and says when the runner cannot meet its bar (ADR 0063).**
+  A p95 over two seconds at 1,000 used to skip every 5,000 sample as
+  saturation, leave the suite `partial` and exit 0, and the final check read
+  only the main summary. Now the gate measures every cell it plans, an
+  unmeasured one fails it, and the check also requires the gate's own
+  summary to be `ok`. It refuses a `somaxconn` shorter than the burst,
+  records the listen-queue drops, warms the workers at the measured
+  concurrency and records each worker's connections. Each sample records its
+  margin to the three-second budget and the throughput two event-loop turns
+  need to fit it, 3,334 requests/s at 5,000 connections: the EPYC 7763 and
+  Xeon hosts serve 2,790-3,190 and timed out in 23 of 42 samples, so a
+  timeout there is reported as `runner_below_bar` and still fails.
+- **`script/bench-socket` measures the hot pages through the listener the
+  service runs, under concurrent clients.** Each side is a checkout with
+  its own database, migrated and seeded with the medium profile by its own
+  `bin/gpforum`, and its own server started as the unit starts it
+  (`gpforum start --service --foreground`, production settings); members
+  register and sign in through the pages. Each cell is a page at a
+  concurrency, that many keep-alive connections speaking to the Unix socket
+  (or, for a checkout from before the socket, TCP loopback) as a proxy's
+  upstream connections do; the sides alternate, the order reversed each
+  round, and the report is each cell's median. `--connections` counts the
+  connections each worker holds in the middle of a cell; `--burst N` opens
+  N more at once a quarter of the way in and reports what they waited.
+- **A drill for EV's kqueue across Hypnotoad's fork.** A kqueue is not
+  inherited by fork(2), and libev rebuilds it in a worker only through EV's
+  pthread_atfork handler, which EV calls buggy on most BSDs. `t/700` forks
+  with a watcher registered in the parent and requires the worker and the
+  manager to keep serving on the native backend; it passes on macOS and
+  `platform-freebsd.yml` now also runs when it changes. ADR 0097 records the
+  risk and the fallback (`EV::loop_fork` in the worker, never poll).
+- **HARNESS_PERL_SWITCHES reach the tests again, and coverage measures
+  `GPForum::OS::Reactor`.** `.proverc` named an explicit interpreter to
+  preload the reactor, which made prove ignore the switches that Devel::Cover
+  and NYTProf use; `script/coverage` worked around it by loading the reactor
+  ahead of Devel::Cover, which then reported the module as never run. With
+  the backend chosen by `script/gpforum-carton exec`, `.proverc` is gone and
+  `script/coverage` loads Devel::Cover through `HARNESS_PERL_SWITCHES` again
+  (`t/699`).
+- **The projection generation search double is gone.**
+  `GPForum::Test::ProjectionGenerationSearch` stood in for the generation
+  writes deleted with `GPForum::Service::Projection`, and only `t/451`'s
+  list of doubles still named it.
+- **No document describes the deleted subsystems as running.**
+  `docs/ENGINEERING_CORRECTNESS.md` loses its plugin, import, legacy-id and
+  projection offset and generation guarantees, `docs/OBSERVABILITY.md` its
+  "Replay And Projection Guarantees" and its projection-lag lines, and
+  `docs/PRODUCT_FLOWS.md` its import sentences: the code they described is
+  gone. ADRs 0056, 0057 and 0069 say `projection_offsets` and
+  `resource_acl` are dropped; ADRs 0012 and 0059 no longer give
+  `production-small` and `production-medium` as profiles; ADRs 0114 and
+  0126 type `gpforum audit-chain` and `gpforum migrate` for the
+  `bin/gpforum-*` names.
+- **The plugin system, legacy import and projection offsets are gone.**
+  They were built and never wired: no route, command or worker reached
+  `GPForum::Service::Plugin::*`, the import half of
+  `GPForum::Service::Portability` (`ImportJobStore`,
+  `ImportManifestValidator`, `LegacyIdMapper`),
+  `GPForum::Service::Projection::*` or `CanonicalUrl::legacy_redirect`. They
+  go with their tests (`t/14`, `t/15`, `t/28`, the import half of `t/27`,
+  now `t/27-export-bundle.t`), their test doubles and Result classes, and
+  their 12 catalogue entries. Migration 105 drops their 24 api functions and
+  the eight tables they and `ResourceAcl` used, which nothing ever wrote;
+  `projection_generations` stays for readiness. ADR 0083 is withdrawn, and
+  ADRs 0081 and 0091 withdraw their import, plugin and projection-offset
+  rules.
+- **No text names a deleted file or command any more.** `docs/PERFORMANCE.md`
+  linked the deleted `BASELINE.md` for the reverse-proxy benchmark and now
+  links `DEPLOYMENT_EVIDENCE.md`; `docs/DEPLOYMENT.md` no longer says
+  `bin/gpforum-*` runs without Carton, and says `gpforum doctor` fails a unit
+  copied before the units ran `bin/gpforum` rather than that it differs;
+  `release/readiness-review.md` types `bin/gpforum mail-check` for the
+  missing `script/gpforum-mail-check`; `console-and-cli.md`,
+  `postgres-diagnostics.md`, two antivirus comments, t/590's header and the
+  POD of `Bootstrap::Config` and `CLI::FrontDoor::Carton` name the verbs
+  (`gpforum dead-letters`, `outbox`, `partitions`, `antivirus-check`) instead
+  of the old names the front door now refuses.
+- **Three modules nothing called are gone.**
+  `GPForum::Service::Operations::RunbookValidator`,
+  `GPForum::Service::Operations::RuntimeSizing` and `GPForum::I18N::Namespace`
+  had no caller outside their own tests (`t/23`, `t/75`), which lose those
+  cases. ADR 0091 withdraws the two operations boundaries, and ADRs 0075 and
+  0088 stop naming the files.
+- **The dated snapshot documents are gone.** `docs/BASELINE.md`,
+  `docs/OPERATIONAL_BASELINE.md`, `docs/SECURITY_BASELINE.md`,
+  `docs/SECURITY_HARDENING.md`, `docs/PRODUCTION_READINESS.md` and
+  `docs/architecture/longevity-review.md` recorded the tree of May and June
+  2026. What they said that is still true and had no other home moved to
+  the document that owns it: `docs/THREAT_MODEL.md` gains account
+  enumeration by the answers, suspended members writing, websocket origin
+  and channel checks, report and mention floods, the audit log's hashes, and
+  two residual risks (unsalted audit hashes, no external audit anchor);
+  `ROADMAP.md`'s release criteria gain the staging verdict rule;
+  `docs/ops/upgrade.md` says a broken migration is fixed forward;
+  `docs/DEPLOYMENT_EVIDENCE.md` describes the reverse-proxy benchmark; and
+  `docs/DEPLOYMENT.md` names `gpforum budgets --sync`. The README, the docs
+  index, the ADR references, t/18 (178 -> 173), t/144 and the
+  project-hygiene workflow follow.
+- **`script/` no longer wraps the front door.** The fifteen shell wrappers
+  that only exec'd a `bin/gpforum-*` command (`bench-hypnotoad`,
+  `bench-hypnotoad-scaling`, `query-budget`, `query-plan-evidence`,
+  `seed-performance-data`, `dead-letter-check`, `evidence-meta`,
+  `evidence-validate`, `mail-check`, `mail-lifecycle-check`, `os-preflight`,
+  `staging-drill`, `staging-drill-attachments`, `staging-host-verify`,
+  `stress-load`) are gone. The Makefile, the CI workflows, the performance
+  harness, the private-beta helpers and the documents type `bin/gpforum
+  VERB` (`bin/gpforum budgets`, `bin/gpforum hypnotoad-benchmark`,
+  `bin/gpforum performance-seed`, and the verb of the same name for the
+  rest); `docs/ENTRYPOINTS.md` says `script/` holds no such wrapper. A
+  service unit printed before the units ran `bin/gpforum` alone still names
+  `script/os-preflight`: print it again with `gpforum service print`.
+
+- Composer JavaScript behavior checks run with
+  `node --test t/js/composer.test.cjs` in Ubuntu CI. They use Node's built-in
+  runner with no npm packages; Node is a development/CI tool, adds no application
+  build/runtime dependency and does not change `make check` requirements.
+
+- Publish six alternating v6 benchmark runs with all 12,000 samples and
+  2,400 distinct measured edit revisions. On PostgreSQL 17, isolating migration
+  102 against v4 reduces direct search/autocomplete medians by 44.5%/49.0%;
+  the unchanged post-edit proxy control increases 0.3% and is retained.
+  Against v2 on PostgreSQL 18, search/autocomplete improve 18.4%/20.0%, and
+  proxy post editing improves 24.5%. Publish source hashes, aggregate median,
+  p95 and CPU statistics, nested plans and the current NYTProf metadata in
+  the [measured follow-up](docs/architecture/sql-functions-optimization.md).
+
+- The paired function benchmark accepts `--before-search-version 2|4` and
+  `--implementation-reference`. A v4 baseline keeps the combined post context
+  on both sides, isolating the search plan change; v2 retains the original
+  three-call post workflow. Edit samples include distinct written revision
+  IDs. The smoke test passes 350 checks; the v2/v4/v6 search test passes 861,
+  and the complete PostgreSQL 17/18 integration tier passes 97 files and
+  10,505 assertions per cluster. Raw evidence and methods are in the
+  [optimization report](docs/architecture/sql-functions-optimization.md).
+
+- **Measure function optimizations with alternating pairs.** The stored-function
+  benchmark adds `--paired-functions`, balances execution order, checks exact
+  search JSON and actual post revisions, and retains every measured sample.
+  Two runs / 4,000 samples give direct service medians of 8.39 → 6.89 ms for
+  ranked search, 3.66 → 2.90 ms for autocomplete and 1.73 → 1.62 ms for post
+  edits. With the delay proxy, post edits improve from 8.13 to 6.42 ms as
+  calls fall from three to two. The [report](docs/architecture/sql-functions-optimization.md)
+  includes all four earlier full runs, their variability, the rejected index
+  experiment and raw evidence. New differential, nested-plan and restricted-login
+  tests cover search v4 and the combined context; both also pass under NYTProf.
+  The config-report fixture handles unavailable OS locales without changing
+  the application's locale selection.
+
+- **CI prepares the English and Italian UTF-8 locales explicitly.**
+  The Debian container also installs `procps`. Process fixtures use explicit
+  titles and PID-specific readiness checks for FreeBSD, and root ownership
+  tests start with a distinct group even in a minimal container.
+
+- **Published the completed function conversion and two benchmark runs.**
+  The comparison covers 20 service operations with warm-up, median and p95,
+  Perl CPU, exclusive DBIx/DBI time, statements and client round trips.
+  Averaging the two local direct-access medians gives discussion creation
+  12.38 → 1.58 ms, replies 11.00 → 1.50 ms and ranked search 20.59 → 7.91 ms;
+  these are service measurements on one host. The [report and raw JSON](docs/architecture/sql-functions-performance.md)
+  explain the workload and limitations. Differential, race, permission,
+  catalogue and plan tests cover the conversion; all 94 PostgreSQL
+  integration files / 9,263 assertions pass with mandatory SCRAM, and CI
+  passes PostgreSQL 16–18 integration and migration/restore drills.
+  Test logins now receive throwaway passwords, and POSIX script lint marks
+  two variables expanded by the quick-start command evaluator.
+
+- Deleted the duplicate and redundant scripts: `bin/gpforum-seed-benchmark`
+  and `script/seed-benchmark` (use `bin/gpforum performance-seed`),
+  `script/bench-http` (`bin/gpforum benchmark --fixture`),
+  `script/bench-hotpaths` (`script/benchmark-http --fixture --check`),
+  `script/profile` and `script/profile-route` (`script/profile-nytprof --
+  PROGRAM` and `--route PATH`), `script/scheduled-jobs` and
+  `script/outbox-dispatch`.
+- Deleted twelve subs that nothing called (in `PlatformCheck`,
+  `Identity::Base`, `EventEnvelope`, `BatchPurge`, `Findings` and
+  `DegradationPolicy`), `Config::requires_glifistore`,
+  `Config::environment_requires_glifistore` and `Config::smtp_ssl`.
+
+- ADR 0126 records the owner's decision to move every SQL statement into
+  PostgreSQL functions created by migrations, with Perl binding parameters
+  and reading rows, and `docs/architecture/sql-functions-inventory.md`
+  lists every statement the integration suite sends, by area and
+  operation, with the baseline: DBIx::Class is 51 to 54% of each forum
+  write and 25 to 53% of each page it was not already removed from.
+
+- `t/610` to `t/615` hold ADR 0125: the three environments and the old
+  names (the start's line in both languages, doctor's `!` and its fix), the
+  sizing from the host (memory per system and per cgroup, the cache bounds,
+  doctor's line), the file setup writes, the retention setting, the drill
+  flags, and every alias resolving until its release with a row in
+  DEPLOYMENT's "Renamed settings". The settings table's `renamed_from` is
+  `aliases`, which also holds old values, each with `read_until`.
+
+- `t/602-upgrade-from-help.t` holds `gpforum upgrade` to `gpforum help` and
+  to the three lines of `docs/ops/upgrade.md`.
+
+- `make fresh-checkout` runs the README quick start as it now reads: given a
+  DSN, `gpforum setup --environment development`, `gpforum admin create` and
+  `gpforum start --foreground` (until `/health/ready` answers), as
+  `bin/gpforum` in the clone with an environment file of the run's own, where
+  it ran `gpforum-migrate --plan` and `--apply`. `t/166` holds the run to the
+  README again: since iteration 3's quick start it failed "the run includes
+  the quick start's gpforum admin create" and "... gpforum start
+  --foreground". Only the FreeBSD job showed it, because it is the one job
+  that reached `prove -lr t`: CI stopped at `make integration`, the Debian
+  job at the dependency install (no `libssl-dev`), and macOS runs the full
+  suite only on schedule.
+
+- `t/600-metrics-token-reload.t` holds the service to its environment file's
+  metrics tokens: through the application, across a rotation and its
+  `--finish`, and during scrapes while another process rotates them, never
+  refused and never opened. `t/601-secret-rotate-metrics-no-restart.t` holds
+  the rotation's printed steps to three, in English and Italian.
+
+- `t/integration/postgres-setup.t` passes on the CI runners, whose
+  `postgres` takes only a password over TCP: setup runs there as an account
+  without root, which it says, and reaches the superuser with the
+  workflow's `GPFORUM_DATABASE_USER` and `GPFORUM_DATABASE_PASSWORD`; the
+  subtests that need a superuser skip, with the reason, when the login is
+  not one.
+
+- `script/bench-outbox-dispatcher` reports `claimed_batches` where it
+  reported `ack_batches`, which had counted the batches claimed since each
+  message is acknowledged on its own, and adds `acknowledged`, the messages
+  acknowledged one by one; a run where it is not every message reports
+  `status=fail`. Nothing in the repository read `ack_batches`, so it is not
+  kept as an alias.
+
+- Integration tests no longer leave databases on the server. A clone a
+  test's subroutine held lived into global destruction, where the admin
+  handle was often freed before it and the drop never ran -- four clones
+  every full run; a test that died between `create_database` and
+  `drop_database` left its database too. Both are dropped at `END`, by the
+  process that made them; `t/integration/pg-database.t` proves it.
+
+- Consolidate architectural documentation in the ADR set and implementation
+  guides. Remove the duplicated numbered text collection, update repository
+  references and contributor workflows, and replace wording checks with
+  documentation structure and reference validation. The technical decisions
+  and behavioral architecture tests remain in place.
+
+- CI prepares database query evidence before architecture checks, installs
+  Git and Carton for the FreeBSD VM, and pins PostgreSQL dump/restore
+  clients to the server major. PostgreSQL fixtures now work with password
+  authentication and the query budgets installed by migrations. The quality
+  gate has time for its full suite, and the resultset `all` method is accepted
+  consistently across supported Perls. Secret scanning exempts only one exact
+  PostgreSQL index identifier in its documented source file and still scans
+  the full history. The action pinning check distinguishes local actions
+  from external dependencies, with regression cases for both.
+
+- Hypnotoad worker discovery reads complete process commands on every
+  supported platform, including FreeBSD, where the default `ps` width could
+  hide the application name in a long command.
+
+- `GPForum::Config`'s settings table carries each setting's section and
+  one-line summary, and `problems` returns every problem as a record
+  (`GPForum::X::Config->problems`); `GPForum::Config::Report` words them, in
+  English, and `GPForum::Service::I18N::CliCatalog` in the operator's
+  language. t/460-t/462 and t/464-t/467 pin the report, the checks, the two
+  catalogs, the log transport, the optional GlifiStore, the retired settings
+  and `auto`.
+
+- `script/architecture-check` keeps the subtraction sweep's gains: a new
+  `check_retired_idioms` refuses, in `lib/` code, an `eval` block,
+  `$EVAL_ERROR` or `$@`, `index($error, ...)`, a private `_schema_dbh`, a
+  `has NAME => undef;` without a `# optional` comment, and a catch variable
+  handed to conflict recovery. Its allowlist holds one frontend file the sweep
+  may not edit (`ViewModel/Forum/Page.pm`, still on `eval`), and an entry
+  that stops firing fails the check. The prototype guard also refuses
+  `:prototype(...)`, the only spelling a prototype has under `use v5.40`, and
+  now reads `script/`'s Perl programs; the `};` check no longer takes a
+  heredoc line at column 0 for the end of the catch block around it, and
+  both checks that read code stop on a heredoc no line ends, since text that
+  only looks like one would leave every line after it unread. Given check
+  names, the script runs only those; `t/341` runs each gate against a
+  scratch tree that breaks it.
+
+- `t/00-load.t` loads every module under `lib/` (453), found on disk: its
+  list had fallen 100 modules behind. `PostReader` declares its schema through
+  `GPForum::Base`, the last `lib/` attribute that was neither required nor
+  marked optional, and `t/340` pins every forum service's required
+  collaborators. `X::Conflict` catches with `try`/`catch`.
+  `etc/perlcritic-baseline.txt` drops the 248 entries that no longer fire:
+  853 lines become 605.
+
+- The subtraction sweep (ADR 0117, ADR 0118) is through `lib/`: `eval`
+  blocks went from 274 to 1 (the frontend file above) and `try` blocks from 4
+  to 229; the 74 `index($error, ...)` constraint matches and 64
+  `is_conflict` and `is_conflict_on` calls are `X::Conflict->on`; the ten
+  private `_schema_dbh` copies are `Infrastructure::Storage`; and of 331
+  `has NAME => undef;` attributes, 87 classes now declare the ones they need
+  with `requires` and the 207 left say `# optional` with the reason.
+  Single-caller helper chains were folded where they only passed arguments
+  on: the identity, privacy, admin, moderation, community and notification
+  services shrank from 13,026 to 11,438 lines of code, and nineteen other
+  services, EventRecorder, AuditRecord and three worker handlers were folded
+  the same way. Their POD names the classes they raise and the collaborators
+  `new` requires.
+
+- The forum write path is split by concern. Each post and thread refusal rule
+  is defined once, in `GPForum::Domain::Post` and `::Thread`; the posting
+  commands' log encoding is one table in `Forum::PostingCommand`, and post and
+  thread events one table in `Forum::Event`. PostStore, PostingWorkflow and
+  ThreadStore went from about 2,850 to about 1,130 lines of code. Golden tests
+  pin every posting command's fingerprint, response and replay and every post
+  and thread event (`t/325`, `t/329`); agreement tests show the stores refuse
+  with the workflow's status for every row state (`t/327`, `t/330`); `t/326`
+  and `t/332`–`t/334` pin the refusal order, the stores' conflict recoveries
+  and where each event field comes from.
+
+- Security events (CSRF failure, authentication or permission denial,
+  rate-limit hit) are recorded in one place, `GPForum::Web::SecurityEvent`,
+  instead of six copies in the controller bases, which inherit their shared
+  request helpers from the new `GPForum::Controller::Base`. `t/378` checks
+  each base records the event of every refusal it renders; `t/375` and
+  `t/377` that each page read that dies reaches its catch, answers the page's
+  failure and logs one line. `PublicCacheAccess` no longer wraps `Mojo::Date`
+  in a catch that could never run.
+
+- The benchmark commands (`benchmark`, `bench-hypnotoad`,
+  `bench-hypnotoad-scaling`, `seed-performance-data`, `query-plan-evidence`)
+  read their options through one reader in `Command::Usage`, with unchanged
+  options and messages, and the two benchmarks judge and compare routes by
+  one set of rules in `GPForum::Benchmark::Measure`. `t/367`–`t/369` pin the
+  option readers, the child-process handling and nine rules the folding
+  could break unnoticed. `script/bench-outbox-dispatcher` exits 2 with its
+  usage on misuse, an empty `--artifact` included, instead of dying with 255.
+
+- Tests found by breaking the converted code on purpose: `t/336` and `t/347`
+  pin each service's required collaborators and the class each one throws;
+  `t/337`–`t/339` a failed mention audit, a workflow whose command log or
+  store dies, and the erasure rollback; `t/355`–`t/357` the foundation's
+  declared failures and nine catch paths no test reached; `t/379` the folded
+  login and bookmark branches; `t/138`, `t/75` and `t/103` the metrics
+  token, RenderPolicy's attribute names and the identity command log;
+  `t/389` a conflict whose partition catalog cannot be read; and the
+  PostgreSQL tier gains a search-document
+  insert race, a notification delivery racing on a partition's key, and the
+  retention purge of revoked sessions and used tokens. The tests the sweep
+  touched catch with `try`/`catch`; `t/322`, `t/323` and six shared doubles
+  still use `eval`.
+
+- ADR 0117 records the Perl 5.40 floor, the `use v5.40` preamble, native
+  `try`/`catch` closed with `};` and the `return undef` policy; ADR 0118
+  records the `GPForum::X` exception classes, why refusals stay result
+  values, and `GPForum::Base->requires`. Both amend ADR 0052.
+
+- `script/architecture-check` fails when a native `try`/`catch` does not end
+  with `};` (ADR 0117). PPI reads a catch block closed by a bare `}` as an
+  unfinished statement and folds the next statement into it, which misleads
+  Perl::Critic.
+
+- `GPForum::Infrastructure::Storage->dbh_of($schema)` and `storage_of` are
+  the one copy of the "schema to database handle, or undef" probe that ten
+  modules each keep as `_schema_dbh`. Callers move to it in later changes.
+
+- `GPForum::Base` lets a class declare the attributes it cannot work without:
+  `__PACKAGE__->requires(qw(schema))` makes `new` throw a
+  `GPForum::X::Argument` ("Store requires schema") when one is missing or
+  undef, across the inheritance chain, and `required_attributes` lists them
+  (ADR 0118). No class extends it yet.
+
+- Exceptions have classes: `GPForum::X` and its `Argument`, `Config`, `Usage`,
+  `Conflict`, `Unavailable` and `Check` subclasses (ADR 0118). An exception
+  stringifies to its message, so every reader of the old strings keeps
+  working. `UniqueConflict->attempt` returns a unique violation as a
+  `GPForum::X::Conflict` whose `on($constraint)` also matches the indexes of
+  a partitioned table, and `UniqueConflict->throw` raises one.
+
+- `my $undefined; return $undefined;` is now `return undef;` (ADR 0117), and
+  the 63 dead returns after a final `UniqueConflict->rethrow` are gone. The
+  profile no longer applies `ProhibitExplicitReturnUndef` and treats
+  `rethrow` and `throw` as terminal for `RequireFinalReturn`.
+
+- Every Perl file declares `use v5.40;` in place of `use strict;` and `use
+  warnings;`, on the line after each `use Mojo::Base` (ADR 0117).
+  `t/321-preamble.t` holds every file to it, with no exceptions left. The
+  profile no longer applies `ProhibitVersionStrings`.
+
+- The six modules that used Try::Tiny use native `try`/`catch`, and `cpanfile`
+  no longer declares Try::Tiny (DBIx::Class, DateTime and Email::Sender still
+  install it). `Identity::Support->trim` and `I18N::Locale->trim` are now
+  `trimmed`: under `use v5.40` a package sub named `trim` collides with the
+  lexical builtin.
+
+- `t/299-readiness-runbook-sections.t` fails when a readiness runbook names a
+  section heading its file does not have.
+
+- The privacy data-rights stores are tested on PostgreSQL: export bundles,
+  deletion requests, approval and its row lock, legal holds (including one that
+  ends) and erasure jobs (including one whose audit write fails and rolls back
+  completely). `t/29-privacy-rights.t` is gone. Two known defects are pinned as
+  TODO: the privacy page fails for a member with an export request because the
+  manifest is read as raw JSON, and erasure leaves the member's e-mail in stored
+  export bundles and in the export response kept in the command log.
+
+- The identity stores are tested on PostgreSQL instead of a fake ORM:
+  registration, login and logout, sessions, password reset and change, e-mail
+  change and verification, and preferences, including races between two
+  connections. Logins for unknown, deleted and password-less accounts are each
+  pinned to one verification against the decoy hash, and a pending account
+  with a wrong password gets the same answer as any wrong password. Two known
+  defects are pinned as TODO: a session is looked up by its id alone, and a new
+  credential takes its creation time from the database clock but its
+  revocation time from the application's.
+
+- The permission gate tests on PostgreSQL fail if a binding that names only a
+  space, or only a resource, is treated as a global grant; an empty scope is
+  tested to mean no scope, and a category created without a space is tested to
+  go to the first live space by position.
+
+- Known defect pinned as TODO in `t/integration/postgres-notifications.t`: a
+  notification, event or audit row left over with a different `created_at`
+  does not conflict on its `(id, created_at)` primary key, so delivering it
+  again writes a second row with the same id. `script/architecture-check`
+  also guards `is_conflict_on` against hand-caught errors.
+
+- **Query-plan gate review fixes.** The "most rows" allowance is limited to
+  the relation a search ranks (it had exempted full scans of any joined
+  table, such as users); a parallel scan is judged by all its workers' rows;
+  a table without statistics is at least as large as its scan. A test double
+  (`UnavailableWrite`) lacked the methods four workflows call, so their
+  outage tests passed for the wrong reason.
+- **The query-plan gate judges the query, not the dataset.** It failed
+  correct plans on the medium dataset (sequential scans of 120 threads):
+  a sequential scan now fails only on a table above 10,000 live rows, a
+  relevance-ranked endpoint may read most of a large table, and a nested
+  loop over one outer row is not explosive. Measured on 20,000 threads:
+  every endpoint passes, and dropping the thread indexes still fails home
+  and both category pages.
+- **`CommandIdempotency::result_of`** replaces seven workflows' identical
+  command guards (ADR 0110's `execute` boundary). Four perlcritic findings
+  outside the baseline in `t/144` and `t/188` are fixed.
+- **ADR 0110 maps ADR 0091's mandatory interfaces to the modules that
+  implement them**, removes five contract methods nothing called, and
+  tracks three real gaps. `EventRecorder::event_recorded` replaces six
+  copies of the lookup that finishes a half-recorded command on replay.
+- **`GPForum::Service::Forum::Readability`** holds the effective-visibility
+  check for one post or thread, for many readers of one, and as an SQL
+  condition for lists; `Notification::RecipientPolicy` extends it. The
+  notification, mention and bookmark readers expose the resultsets they run
+  (`unread_resultset`, `mentions_resultset`, `bookmarks_resultset`), and
+  `t/200-readable-lists.t` checks their SQL without a database.
+- **The viewer resolution and the notification readability check count as
+  queries.** Their hand-written SQL went around DBIx::Class's statistics, so
+  every signed-in request under-reported its queries by one against the
+  endpoint budgets; `GPForum::Infrastructure::CountedQuery` reports them. The
+  thread page loads the move form's category list only for the thread's
+  author, who alone sees the form.
+- Let `script/gpforum-carton exec` run against `local/` when the Carton
+  binary is missing for system Perl (still hard-fails on `install`). Route
+  quality-gate wrappers (`script/test`, coverage, perltidy, benches, …)
+  through it so gates do not depend on a packaged Carton. Does not claim
+  private-beta readiness.
+- Expand deploy host observe to `gpforum-scheduled-jobs.service` (unit-dir
+  contract) and `gpforum-scheduled-jobs.timer` (`--systemd` is-active). Fold
+  mail-lifecycle + dead-letter simulate commands into
+  `script/gpforum-evidence-live`. Does not install/reload services or claim
+  private-beta readiness.
+- Add `script/gpforum-mail-lifecycle-check` to exercise Identity::Mailer
+  `password_reset` / `email_change` / `email_verification` under the test
+  transport with EvidenceMeta JSON (token scrubbing). Staging SMTP `--send`
+  remains open. Does not claim private-beta readiness.
+- Add `script/gpforum-dead-letter-check` to automate the
+  `docs/ops/dead-letters.md` staging check (`--simulate` permanent failure →
+  dead-letter → redispatch → retention hold) with EvidenceMeta JSON. Live
+  `/admin/jobs` confirmation remains open. Does not claim private-beta
+  readiness.
+- Extend EvidenceMeta / evidence-validate to staging drills
+  (`staging_drill`, `attachment_filesystem`, `deploy_checklist`,
+  `staging_ops_extensions`) so prep archives can be `--strict`-checked offline.
+  Does not claim private-beta readiness.
+- Add `script/gpforum-evidence-meta` to stamp archived ops JSON with the shared
+  EvidenceMeta contract, so
+  `evidence-validate --strict` can accept historical preparation blobs without
+  changing measurements. Does not claim private-beta readiness.
+- Centralize ops evidence metadata in
+  `GPForum::Service::Operations::EvidenceMeta` (`secrets_redacted`,
+  `private_beta_claimed=0`, deduped `residual_gaps`, optional secret scrubbing).
+  Wire `staging-host-verify`, `mail-check`, and `stress-load` through it;
+  `evidence-validate --strict` requires the markers on all known families.
+  Does not claim private-beta readiness.
+- Add `script/gpforum-evidence-validate` / `bin/gpforum-evidence-validate` to
+  validate archived ops evidence JSON (shape by family, secret patterns,
+  private-beta claim rejection; `--strict` requires modern redaction markers).
+  Docs: `docs/ops/evidence-validate.md`. Does not claim private-beta readiness.
+- Centralize deploy systemd/nginx contracts in
+  `GPForum::Service::Operations::DeployContract` (shared by the deploy
+  checklist drill and staging-host verify). Add non-destructive
+  `--nginx-conf` observe to `staging-host-verify`. Does not install/reload
+  services or claim private-beta readiness.
+- Add non-destructive `--unit-dir` observe to `staging-host-verify`: installed
+  systemd unit text must match the deploy contract (`User`, `EnvironmentFile`,
+  `ExecStart` via `gpforum-carton`). Harden TLS URL parsing (host/port,
+  trailing slash). Does not install/enable units or claim private-beta
+  readiness.
+- Observe TLS on `script/staging-host-verify --base-url https://…` (records
+  https scheme; pair with the health probe). `http://` base URLs leave a
+  residual gap. Wired into `docs/ops/staging-host.md` and
+  `script/gpforum-evidence-live`. Does not claim private-beta readiness.
+- Point `script/gpforum-evidence-live` at stress profile `500` as the next capacity step.
+- Lock `StagingHostVerify` metrics probe header to `X-GPForum-Metrics-Token` in `t/164-staging-host-verify.t`.
+- Fix the `StagingHostVerify` metrics probe header to
+  `X-GPForum-Metrics-Token`.
+- Cover `script/gpforum-evidence-live` in `t/165-evidence-live.t` and
+  `t/18-github-project.t` (executable, print-only, no private-beta claim).
+- Add print-only `script/gpforum-evidence-live` / `make evidence-live` to
+  orchestrate live `staging-host-verify` + `stress-load` + mail-check archive
+  commands (env-file / base-url). Does not start Hypnotoad or claim private-beta
+  readiness. Wired into private-beta checklist and `docs/ops/staging-host.md`.
+- Ignore `local.rebuild.*` / `local.incomplete.*` Carton recovery trees in `.gitignore` (companions to `bootstrap-deps --rebuild-local`).
+- Wire `script/bootstrap-deps --rebuild-local` into the private-beta checklist script and docs so incomplete Carton `local/` trees are an explicit prep step.
+- Archive macOS laptop prep evidence under
+  `docs/ops/evidence/2026-09-20-macos-laptop-prep/` (checklist print-only,
+  repo-only `staging-host-verify` pass, degraded attachments drill). Explicitly
+  **not** staging/private-beta evidence; residuals documented in the README.
+- Document optional MacPorts user-space PostgreSQL (`initdb` under `$HOME`, non-default port) in `docs/ops/staging-drills.md` for throwaway drills when `sudo port load postgresql*-server` is unavailable. Still requires OS system Perl 5.38+ and Carton deps.
+- Add operator private-beta go/no-go checklist aggregating system-perl,
+  macports-env, migrate, query-budget, staging-drill,
+  staging-drill-attachments, staging-host-verify, stress-load, and mail-check
+  in `docs/ops/private-beta-checklist.md`, plus print-only
+  `script/gpforum-private-beta-checklist` (`--commands` / `--status`; never
+  claims readiness). Point ROADMAP / readiness review / README at it.
+  Optional `make private-beta-checklist`. Does not change stress-load or
+  deploy-checklist core logic.
+- Make deploy-drill `nginx -t` succeed on non-root distro nginx: wrapper
+  configs now place client/proxy temp paths under the throwaway prefix and
+  rewrite sample `listen 80` to `127.0.0.1:18080`. When `nginx` is on
+  `PATH`, host validation can reach `pass` instead of failing or staying
+  skipped; missing nginx still skips/degrades.
+- Strengthen `script/staging-drill-attachments` host validation: always keep
+  static nginx/systemd template checks; when `systemd-analyze` / `nginx` are
+  on `PATH`, run `systemd-analyze verify` and `nginx -t` against rendered
+  sample configs (stub ExecStart paths / wrapper nginx.conf); missing tools
+  skip those phases and may mark evidence `degraded`. Attachment drill now
+  populates a throwaway `var/attachments` tree, wipes it, restores, and
+  asserts digests. Docs/CHANGELOG/tests updated; stress-load harness
+  untouched. Does not claim private-beta readiness.
+- Record live `script/stress-load` evidence against Hypnotoad + seeded
+  PostgreSQL (smoke / 100 / 500 pass; 1000 peak sustained with p95 residual) in
+  `docs/ops/stress-load.md` and `docs/PERFORMANCE_EVIDENCE.md`. Prefer response
+  codes over Mojo transport-error buckets for HTTP 4xx/5xx; report `ok` without
+  `--check`. Optional `GPFORUM_FORUM_READ_RATE_LIMIT` for single-IP capacity
+  runs above the default 60/60s forum retrieval ceiling.
+- Add `script/staging-drill-attachments` / `bin/gpforum-staging-drill-attachments`
+  for throwaway `FilesystemStorage` backup/restore round-trip and static
+  nginx/systemd deploy template checks (`User`, `EnvironmentFile`,
+  `ExecStart` via `script/gpforum-carton`, nginx upstream). Document MacPorts
+  PostgreSQL `PATH` notes alongside attachment-path and live-deploy residual
+  gaps in `docs/ops/staging-drills.md`. Optional `make staging-drill-attachments`
+  is not part of default CI. Does not claim private-beta readiness.
+- Docs: mark system Perl, PG concurrency/idempotency/outbox-reclaim evidence,
+  staging-drill DB, stress-load harness, attachment/deploy drills, and
+  MacPorts notes as shipped in `ROADMAP.md` / readiness review / README
+  status; Next is recording staging evidence (stress 100/500/1000,
+  attachment restore + live deploy), not missing harness code.
+- Add `t/integration/postgres-outbox-reclaim.t`: skippable-unless-DSN evidence
+  with two real PostgreSQL connections for expired `running` lock reclaim
+  (concurrent SKIP LOCKED race), fresh-lock hold, and claim-crash-then-reclaim;
+  wire it into CI beside the other PostgreSQL integration tests. Close the
+  residual OUT-002 / FM-005 reclaim evidence gap in the transactional and
+  failure-mode audits.
+- Docs: align `ROADMAP.md` / release readiness with shipped mail delivery,
+  moderation locks/idempotency, failure-mode coverage, and LISTEN/NOTIFY
+  realtime; residual “Next” is evidence and staging, not missing MVP code.
+- Docs: catalog `attachment.uploaded`, `attachment.deleted`,
+  `report.assigned`, `report.released`, and `report.resolved` in
+  `EVENTS.md`, ADR 0091, and ADR 0071 from emitting store payloads.
+- Docs: point roadmap/status at ADR 0068 and ADR 0091. Architectural history
+  is recorded in the ADR set.
+- Loaded `Crypt::URandom` lazily from `Service::Id` so UUID minting no
+  longer imports that XS module at compile time.
+- Moved attachment per-post and per-attachment link fetch caps onto
+  `Attachment::Lifecycle` so the store no longer owns those windows inline
+  with resultset searches.
+- Loaded `Crypt::URandom` lazily from `Password` and `SessionToken`, and
+  `Service::Id` lazily from `Identity::Store` and its credential/session/token
+  stores, so identity compile-time tests can inject `Test::Id` without that
+  XS module.
+- Loaded `Service::Id` lazily from `EventRecorder`,
+  `Outbox::MessageBuilder`, and the event-backed stores that only used it
+  for default construction so compile-time tests can inject `Test::Id`
+  without `Crypt::URandom`.
+- Moved community bookmark/subscription write-success statuses onto
+  `Web::ForumAccess` so `Forum::Community` no longer owns those strings
+  inline with store writes.
+- Moved admin catalog/binding, moderation content/queue/suspension, and
+  privacy review write-success statuses onto the existing `Web::*Access`
+  objects so those controllers no longer own those strings inline with CSRF
+  checks.
+- Moved moderation permission action and resource names, plus admin and
+  privacy catalog `view` actions, onto the existing `Web::*Access` objects
+  so those controllers no longer own those strings inline with CSRF checks.
+- Extracted `Web::OperationsAccess` for `/metrics` token presence, Bearer
+  and `X-GPForum-Metrics-Token` comparison, and the unauthorized JSON
+  payload so `Controller::Operations` no longer owns those contracts
+  inline with snapshot rendering.
+- Moved the 30-day authenticated cookie-session lifetime onto
+  `Web::CookieSession` so `Controller::Identity` no longer owns
+  `expires_at` inline with login rotation.
+- Moved community `post`/`thread`/`user` target types onto
+  `Web::ForumAccess` so `Forum::Community` no longer owns those strings
+  inline with bookmark and report writes.
+- Moved locale/theme preference-cookie names and Lax one-year options onto
+  `Web::IdentityAccess` so `Identity::Base` and `Bootstrap::UI` share the
+  same names without owning cookie writes there.
+- Moved forum list page defaults, admin dashboard row caps, and identity
+  profile thread limits onto the existing `Web::*Access` objects so those
+  controllers no longer own the numbers inline with rendering.
+- Moved `user`-scope `realtime.connect` / `realtime.subscribe` rate-limit
+  hashes and plaintext handshake texts onto `Web::RealtimeAccess` so the
+  websocket controller no longer owns those contracts inline with hub
+  registration and telemetry.
+- Moved identity_http rate-limit hashes onto `Web::IdentityAccess` so
+  `Identity::Base` no longer owns login/register/password/logout/settings
+  windows inline with CSRF telemetry.
+- Moved search page, autocomplete, fetch, and more-results limits onto
+  `Web::ForumAccess` so `Forum::Search` no longer owns those windows inline
+  with degraded-search evals.
+- Extracted `Web::AdminAccess` for catalog page limits, the
+  `admin_console`/`manage` permission hash, Guard invalid-request titles,
+  and the roles redirect so `Admin::Base` no longer owns those contracts
+  inline with CSRF and telemetry.
+- Extracted `Web::PrivacyAccess` for privacy list page limits, the
+  `privacy_rights`/`manage` permission hash, `conflict` blocked-hold
+  payloads, and Guard invalid-request titles so `Privacy::Base` no longer
+  owns those contracts inline with CSRF checks.
+- Extracted `Web::ModerationAccess` for report-queue page limits, default
+  open/active filters, permission-target hashes, and Guard invalid-request
+  payloads so `Moderation::Base` no longer owns those contracts inline with
+  CSRF and telemetry.
+- Extracted `Web::NotificationAccess` for inbox/mention page limits, the
+  `notification_http` write rate-limit hash, and `failed`/`not_found`
+  mapping so `Notifications::Base` no longer owns those contracts inline
+  with CSRF and telemetry.
+- Extracted `Web::AttachmentAccess` for upload rate-limit hashes, download
+  filename sanitizing, content-disposition values, and Guard payloads so
+  `Attachments::Base` no longer owns those contracts inline with CSRF checks.
+- Extracted `Web::ForumAccess` for forum read/write rate-limit hashes,
+  participation actions, report field errors, search filter names, public
+  SSR cache keys, and integer limits so `Forum::Base` no longer owns those
+  contracts inline with Guard rendering.
+- Extracted attachment orphan-cleanup search, actor/reason fallbacks, and
+  result hashes onto `Attachment::Lifecycle` so the store no longer owns
+  those contracts inline with resultset deletes.
+- Extracted login/logout AuditLog hashes onto `Identity::Event` so
+  `Identity::SecurityAudit` no longer owns identifier hashing and request
+  metadata inline with recorder writes.
+- Extracted `Admin::Event` for role-binding and role-catalog AuditLog hashes so
+  `RoleBindingStore` and `RoleCatalog` no longer own those contracts inline
+  with row writes.
+- Extracted suspend and revoke EventLog/AuditLog hashes onto
+  `Moderation::Event` so `SuspensionStore` no longer owns those contracts
+  inline with row writes.
+- Extracted report created, duplicate-blocked, and transition EventLog/AuditLog
+  hashes onto `Moderation::Event` so `ReportStore` no longer owns those
+  contracts inline with row writes.
+- Extracted `Moderation::Event` for created-action and reversal EventLog
+  envelopes, payloads, and AuditLog hashes so `ActionStore` no longer owns
+  those contracts inline with row writes.
+- Extracted `Identity::Event` for `user.registered` envelopes, registration
+  audit hashes, and typed identity audit arguments so `Identity::Audit` no
+  longer owns those contracts inline with recorder writes.
+- Extracted retention-hold EventLog/AuditLog hashes onto `Privacy::Event` so
+  `RetentionHoldStore` no longer owns those contracts inline with row
+  inserts.
+- Extracted `Privacy::Event` for deletion-request, approval, hold, block, and
+  completion EventLog hashes plus recorder EventLog/AuditLog arguments so the
+  deletion workflow no longer owns those contracts inline with locks and
+  row writes.
+- Extracted `Attachment::Event` for EventLog envelopes, scan event types,
+  payload hashes, and AuditLog arguments so the attachment store no longer
+  owns those contracts inline with resultset writes.
+- Extracted `Web::DiscoveryAccess` for sitemap/feed reader limits and crawler
+  document rendering so the discovery controller no longer owns those
+  contracts inline with category and thread reads.
+- Extracted `Privacy::Completion` for approval/completion replay hashes, job
+  done checks, skip payloads, and the default legal-hold reason so the
+  deletion workflow no longer owns those results inline with locks and
+  event writes.
+- Extracted `Web::IdentityAccess` for identity CSRF text, rate-limit,
+  system-failure, and bad-request rendering so the identity HTTP base no
+  longer owns those contracts inline and does not reuse `Web::Guard`.
+- Extracted `Attachment::Lifecycle` for upload replay, scan state
+  transitions, and delete replay so the attachment store no longer owns those
+  hashes inline with resultset writes.
+- Extracted `Web::HomeAccess` for home reader limits, the success payload,
+  and the custom `home_unavailable` 500 contract so the home controller no
+  longer owns those hashes inline and does not reuse `Web::Guard`.
+- Moved linked-versus-unlinked attachment download payloads onto
+  `Attachment::DownloadAccess->authorized` so the store only preloads links
+  and target rows.
+- Extracted `Outbox::FailureType`, `Outbox::Retry`, and `Outbox::ClaimQuery`
+  so the dispatcher no longer mixes failure classification, attempt/backoff
+  policy, and PostgreSQL claim SQL with transport dispatch and row updates.
+  `DeadLetterRecorder` loads `Service::Id` only when a production id service
+  is needed.
+- Split `ViewModel::Forum::Presenter` into row, page, and new-thread form
+  helpers so the facade no longer mixes payload mapping with form defaults
+  and thread-page assembly.
+- Extracted `Privacy::Record` and `Privacy::Erasure` so deletion workflow no
+  longer mixes row accessors and anonymized identity values with approval
+  locks, hold blocking, and audit persistence.
+- Extracted `Attachment::Record` and `Attachment::DownloadAccess` so the
+  attachment store no longer mixes row accessors and download visibility
+  with intent, scan, and audit persistence.
+- Split `Service::I18N` into catalog lookup, locale negotiation, and
+  date/number formatting helpers so the public facade no longer owns the
+  bundled English and Italian strings inline.
+- Extracted `Infrastructure::AuditRecord` for canonical audit hashing and
+  verification so `EventRecorder` no longer mixes hash-chain construction
+  with EventLog, OutboxMessage, and AuditLog persistence.
+- Extracted `Web::PublicCacheAccess` for anonymous GET/HEAD cacheability and
+  ETag/Last-Modified freshness so `PublicHttpCache` no longer mixes storage
+  with validator decisions.
+- Extracted `Web::CookieSession` for cookie-session presence, expiry, clearing,
+  and login-value assembly so bootstrap identity and the login controller no
+  longer mutate session keys inline.
+- Extracted `Web::RealtimeAccess` for websocket origin, payload-size, and
+  subscribe-message decisions so the realtime controller no longer mixes
+  handshake rules with hub registration and telemetry.
+- Extracted `Identity::RegistrationStore` for duplicate checks and
+  transactional user/credential persistence so the identity store facade no
+  longer owns registration writes.
+- Extracted `Identity::AuthStore` for login credential verification and
+  server-session creation so the identity store facade no longer owns
+  authentication lookups.
+- Extracted `Identity::AccountStore` for password reset, password change, and
+  email-change persistence so the identity store facade no longer owns those
+  token, credential, and user-row updates.
+- Extracted `Identity::PreferenceStore` for locale and theme persistence so
+  the identity store facade no longer owns preference row updates, and
+  converted operations metrics auth helpers off postfix control.
+- Extracted `Web::Access` for shared CSRF, session-user, and JSON decisions
+  used by HTTP bases, identity settings, realtime, public cache, and session
+  validation, leaving error rendering on `Web::Guard`.
+- Routed identity locale/theme persistence and notification preference writes
+  through `Identity::Workflow` and `Notification::Workflow`, keeping cookies
+  and session rotation in the HTTP controllers.
+- Split attachment and notification HTTP ownership, introduced
+  `Attachment::Workflow` for post uploads and downloads, and
+  `Notification::Workflow` for mark-read writes so controllers no longer
+  look up posts, enforce authors, or map store exceptions themselves.
+- Introduced `Identity::Workflow` as the write boundary for registration,
+  login, logout, password, and email commands, keeping cookie-session rotation
+  in the HTTP controller.
+- Split privacy HTTP ownership into member dashboard, request, and staff
+  review controllers, introduced `Privacy::Workflow` as the write boundary for
+  export, deletion, hold, and erasure commands, and extracted `Web::Guard` for
+  shared CSRF, auth, rate-limit, and error rendering used by privacy, admin,
+  moderation, forum, attachments, and notifications.
+- Split admin HTTP ownership into review, catalog, and binding controllers, and
+  introduced `Admin::Workflow` as the write boundary for roles, permissions,
+  and role bindings.
+- Split moderation HTTP ownership into review, queue, action, and suspension
+  controllers, and introduced `Moderation::Workflow` as the write boundary for
+  report, content, and suspension commands.
+- Added GitHub project success surface: CI, hygiene workflow, Dependabot,
+  issue templates, pull request template, security policy, contributing guide,
+  governance notes, support policy, roadmap, changelog, and ADR template.

@@ -1,0 +1,35 @@
+<!doctype html>
+% my $metadata = ui_locale_metadata;
+% my $theme = ui_theme;
+<html lang="<%= ui_locale %>" dir="<%= $metadata->{direction} %>" data-locale="<%= ui_locale %>" data-direction="<%= $metadata->{direction} %>" data-color-scheme="<%= ui_theme_color_scheme %>" data-theme="<%= $theme %>" data-script="<%= $metadata->{script} %>">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <meta name="color-scheme" content="<%= ui_theme_color_scheme %>">
+    % for my $tint (@{ ui_theme_registry->theme_colors($theme) }) {
+    <meta name="theme-color"<%== $tint->{media} ? ' media="' . $tint->{media} . '"' : q{} %> content="<%= $tint->{color} %>">
+    % }
+    <title><%= title %></title>
+    <link rel="manifest" href="<%= url_for('web_manifest') %>">
+    <link rel="icon" href="<%= ui_asset_url('favicon.ico') %>" type="image/x-icon" sizes="16x16 32x32 48x48">
+    <link rel="icon" href="<%= url_for('site_icon') %>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<%= ui_asset_url('apple-touch-icon.png') %>" sizes="180x180">
+    <meta name="apple-mobile-web-app-title" content="<%= t('app.name') %>">
+    <link rel="stylesheet" href="<%= ui_asset_url('gpforum-ssr.css') %>">
+  </head>
+  <body class="app-shell <%= $metadata->{typography_class} %>">
+    <a class="skip-link" href="#content"><%= t('nav.skip_to_content') %></a>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="<%= url_for('home') %>">
+          <%= ui_icon('orbit') %>
+          <span class="brand__name"><%= t('app.name') %></span>
+        </a>
+      </div>
+    </header>
+    <main id="content" class="page-shell" tabindex="-1">
+      <%= content %>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,1077 @@
+{
+   "$schema" : "https://json-schema.org/draft/2020-12/schema",
+   "additionalProperties" : false,
+   "properties" : {
+      "check" : {
+         "const" : "postgres_diagnostics"
+      },
+      "checked_at" : {
+         "pattern" : "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+         "type" : "string"
+      },
+      "commit" : {
+         "pattern" : "^[a-f0-9]{40}$",
+         "type" : [
+            "string",
+            "null"
+         ]
+      },
+      "configuration" : {
+         "additionalProperties" : false,
+         "properties" : {
+            "lock_timeout_ms" : {
+               "const" : 500
+            },
+            "query_text_collected" : {
+               "const" : false
+            },
+            "row_limit" : {
+               "minimum" : 1,
+               "type" : "integer"
+            },
+            "statement_timeout_ms" : {
+               "const" : 2000
+            },
+            "transaction" : {
+               "const" : "read-only-rollback"
+            }
+         },
+         "required" : [
+            "row_limit",
+            "statement_timeout_ms",
+            "lock_timeout_ms",
+            "transaction",
+            "query_text_collected"
+         ],
+         "type" : "object"
+      },
+      "duration_seconds" : {
+         "minimum" : 0,
+         "type" : "number"
+      },
+      "environment" : {
+         "additionalProperties" : false,
+         "properties" : {
+            "all_statistics_visible" : {
+               "type" : "boolean"
+            },
+            "bypass_rls" : {
+               "type" : "boolean"
+            },
+            "in_recovery" : {
+               "type" : "boolean"
+            },
+            "postgres_version" : {
+               "type" : "string"
+            },
+            "superuser" : {
+               "type" : "boolean"
+            },
+            "version_number" : {
+               "minimum" : 160000,
+               "type" : "integer"
+            }
+         },
+         "type" : "object"
+      },
+      "error" : {
+         "type" : "string"
+      },
+      "findings" : {
+         "items" : {
+            "type" : "string"
+         },
+         "type" : "array"
+      },
+      "private_beta_claimed" : {
+         "const" : 0
+      },
+      "residual_gaps" : {
+         "items" : {
+            "type" : "string"
+         },
+         "minItems" : 1,
+         "type" : "array"
+      },
+      "schema_version" : {
+         "const" : 1
+      },
+      "secrets_redacted" : {
+         "const" : true
+      },
+      "sections" : {
+         "additionalProperties" : false,
+         "properties" : {
+            "activity" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "active" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "blocked" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "connections" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "hidden_sessions" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "idle_in_transaction" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "lock_waiters" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "oldest_transaction_seconds" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "active",
+                           "blocked",
+                           "connections",
+                           "hidden_sessions",
+                           "idle_in_transaction",
+                           "lock_waiters",
+                           "oldest_transaction_seconds"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "archive" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "archived_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "failed_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "last_archived_time" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "last_failed_time" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "stats_reset" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "archived_count",
+                           "failed_count",
+                           "last_archived_time",
+                           "last_failed_time",
+                           "stats_reset"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "checkpoints" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "buffers_written" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "requested" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "stats_reset" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "sync_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "timed" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "write_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "buffers_written",
+                           "requested",
+                           "stats_reset",
+                           "sync_ms",
+                           "timed",
+                           "write_ms"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "database" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "blks_hit" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "blks_read" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "conflicts" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "deadlocks" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "freeze_max_age" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "stats_reset" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "temp_bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "temp_files" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "track_counts" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "xact_commit" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "xact_rollback" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "xid_age" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "blks_hit",
+                           "blks_read",
+                           "bytes",
+                           "conflicts",
+                           "deadlocks",
+                           "freeze_max_age",
+                           "stats_reset",
+                           "temp_bytes",
+                           "temp_files",
+                           "track_counts",
+                           "xact_commit",
+                           "xact_rollback",
+                           "xid_age"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "indexes" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "backs_constraint" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "idx_scan" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "idx_tup_fetch" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "idx_tup_read" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "index_name" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "is_partial" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "is_primary" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "is_unique" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "ready" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "table_name" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "valid" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "backs_constraint",
+                           "bytes",
+                           "idx_scan",
+                           "idx_tup_fetch",
+                           "idx_tup_read",
+                           "index_name",
+                           "is_partial",
+                           "is_primary",
+                           "is_unique",
+                           "ready",
+                           "table_name",
+                           "valid"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "settings" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "name" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "pending_restart" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "setting" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "unit" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "name",
+                           "pending_restart",
+                           "setting",
+                           "unit"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "statements" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "buffer_dirtied" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "buffer_hits" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "buffer_reads" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "buffer_written" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "calls" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "mean_execution_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "mean_planning_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "planning_measured" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "plans" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "query_id" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "role_oid" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "stddev_execution_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "stddev_planning_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "temp_reads" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "temp_written" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "toplevel" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "total_execution_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "total_planning_ms" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_fpi" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_records" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "buffer_dirtied",
+                           "buffer_hits",
+                           "buffer_reads",
+                           "buffer_written",
+                           "calls",
+                           "mean_execution_ms",
+                           "mean_planning_ms",
+                           "planning_measured",
+                           "plans",
+                           "query_id",
+                           "role_oid",
+                           "stddev_execution_ms",
+                           "stddev_planning_ms",
+                           "temp_reads",
+                           "temp_written",
+                           "toplevel",
+                           "total_execution_ms",
+                           "total_planning_ms",
+                           "wal_bytes",
+                           "wal_fpi",
+                           "wal_records"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "tables" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "analyze_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "autoanalyze_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "autovacuum_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "dead_tuple_estimate_pct" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "idx_scan" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "index_bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "is_partition" : {
+                              "type" : [
+                                 "boolean",
+                                 "null"
+                              ]
+                           },
+                           "last_analyze" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "last_autoanalyze" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "last_autovacuum" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "last_vacuum" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "n_dead_tup" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "n_live_tup" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "n_mod_since_analyze" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "n_tup_del" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "n_tup_ins" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "n_tup_upd" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "seq_scan" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "table_name" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "total_bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "vacuum_count" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "vacuum_options" : {
+                              "items" : {
+                                 "type" : "string"
+                              },
+                              "type" : "array"
+                           },
+                           "xid_age" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "analyze_count",
+                           "autoanalyze_count",
+                           "autovacuum_count",
+                           "dead_tuple_estimate_pct",
+                           "idx_scan",
+                           "index_bytes",
+                           "is_partition",
+                           "last_analyze",
+                           "last_autoanalyze",
+                           "last_autovacuum",
+                           "last_vacuum",
+                           "n_dead_tup",
+                           "n_live_tup",
+                           "n_mod_since_analyze",
+                           "n_tup_del",
+                           "n_tup_ins",
+                           "n_tup_upd",
+                           "seq_scan",
+                           "table_name",
+                           "total_bytes",
+                           "vacuum_count",
+                           "vacuum_options",
+                           "xid_age"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            },
+            "wal" : {
+               "additionalProperties" : false,
+               "properties" : {
+                  "reason" : {
+                     "type" : "string"
+                  },
+                  "rows" : {
+                     "items" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                           "stats_reset" : {
+                              "type" : [
+                                 "string",
+                                 "null"
+                              ]
+                           },
+                           "wal_buffers_full" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_bytes" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_fpi" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           },
+                           "wal_records" : {
+                              "type" : [
+                                 "number",
+                                 "null"
+                              ]
+                           }
+                        },
+                        "required" : [
+                           "stats_reset",
+                           "wal_buffers_full",
+                           "wal_bytes",
+                           "wal_fpi",
+                           "wal_records"
+                        ],
+                        "type" : "object"
+                     },
+                     "type" : "array"
+                  },
+                  "status" : {
+                     "enum" : [
+                        "ok",
+                        "unavailable"
+                     ]
+                  }
+               },
+               "required" : [
+                  "status",
+                  "rows"
+               ],
+               "type" : "object"
+            }
+         },
+         "type" : "object"
+      },
+      "source_dirty" : {
+         "type" : [
+            "boolean",
+            "null"
+         ]
+      },
+      "status" : {
+         "enum" : [
+            "ok",
+            "degraded",
+            "fail"
+         ]
+      }
+   },
+   "required" : [
+      "check",
+      "schema_version",
+      "status",
+      "checked_at",
+      "environment",
+      "sections",
+      "secrets_redacted",
+      "private_beta_claimed",
+      "residual_gaps"
+   ],
+   "title" : "GPForum PostgreSQL diagnostics v1",
+   "type" : "object"
+}

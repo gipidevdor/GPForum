@@ -1,0 +1,4 @@
+% extends undef;
+% layout 'system';
+% title t('forum.error_internal_title') . ' - ' . t('app.name');
+<%= include 'components/system_error', code => 500, heading => t('forum.error_internal_title'), message => t('forum.error_internal_message') %>

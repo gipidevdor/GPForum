@@ -1,0 +1,37 @@
+% layout 'default';
+% title t('forum.tags') . ' - ' . t('app.name');
+% stash breadcrumbs => [
+%   { current => 0, label => t('nav.home'), url => url_for('home')->to_string },
+%   { current => 1, label => t('forum.tags') },
+% ];
+
+<section aria-labelledby="tags-heading">
+  <%= include 'components/page_header',
+    heading_id => 'tags-heading',
+    component_title => t('forum.tags'),
+    description => t('forum.tags_description') %>
+  <form id="tag-filter-form" method="get" action="<%= ui_path('tagged_threads') %>">
+    <label for="tag-filter"><%= t('forum.tag_filter_slugs') %></label>
+    <input id="tag-filter" name="tags" type="text" maxlength="155" required placeholder="perl,postgresql">
+    <label for="tag-match"><%= t('forum.tag_filter_match') %></label>
+    <select id="tag-match" name="tag_match">
+      <option value="all"><%= t('forum.tag_filter_all') %></option>
+      <option value="any"><%= t('forum.tag_filter_any') %></option>
+    </select>
+    <button type="submit"><%= ui_icon('search') %><%= t('search.submit') %></button>
+  </form>
+  % if (@{$tags}) {
+    <ul class="tag-cloud" aria-label="<%= t('forum.tags') %>">
+      % for my $tag (@{$tags}) {
+        <li>
+          <a class="tag" href="<%= ui_path('tag', slug => $tag->{slug}) %>"><%= $tag->{name} %></a>
+          <span class="ui-count"><%= tc('forum.tagged_thread_count', $tag->{thread_count}) %></span>
+        </li>
+      % }
+    </ul>
+  % } else {
+    <%= include 'components/empty_state',
+      heading_id => 'tags-empty-heading', empty_icon => 'tag',
+      component_title => t('forum.no_tags') %>
+  % }
+</section>

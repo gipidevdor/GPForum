@@ -1,0 +1,201 @@
+{
+  "hardware": {
+    "ram_bytes": 17179869184,
+    "cpu_count": 10,
+    "cpu_model": "Apple M4",
+    "os": "Darwin 27.0.0 arm64",
+    "storage": "internal SSD; APFS; storage class declared nvme, device not benchmarked"
+  },
+  "git_head": "078d740f5c63bbe7ed13faace2636fd0ddf088c3",
+  "runs": {
+    "prepare-1m": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/bench-postgres-configuration",
+        "--prepare",
+        "--search-documents",
+        "1000000",
+        "--disposable-database"
+      ],
+      "started_at": 1792231458.611907,
+      "elapsed_seconds": 80.76872706413269,
+      "database": "gpforum_perf_config_template_1m"
+    },
+    "baseline-1m": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/bench-postgres-configuration",
+        "--disposable-database",
+        "--iterations",
+        "30",
+        "--write-iterations",
+        "30",
+        "--plans"
+      ],
+      "started_at": 1792231565.656466,
+      "elapsed_seconds": 150.66799092292786,
+      "database": "gpforum_perf_config_a_1m"
+    },
+    "baseline-outbox": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/performance-outbox.pl",
+        "--messages",
+        "1000",
+        "--workers",
+        "1,2",
+        "--repetitions",
+        "3",
+        "--json"
+      ],
+      "started_at": 1792231716.324532,
+      "elapsed_seconds": 4.576636075973511,
+      "database": "postgres"
+    },
+    "verify-optimized": {
+      "command": [
+        "bin/gpforum",
+        "postgres-performance",
+        "verify",
+        "--strict",
+        "--json"
+      ],
+      "database": "postgres",
+      "started_at": 1792231916.147537,
+      "elapsed_seconds": 0.588494062423706,
+      "exit_code": 0
+    },
+    "optimized-100k": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/bench-postgres-configuration",
+        "--disposable-database",
+        "--iterations",
+        "100",
+        "--write-iterations",
+        "30",
+        "--plans"
+      ],
+      "database": "gpforum_perf_config_b_100k",
+      "started_at": 1792231917.728798,
+      "elapsed_seconds": 80.39986991882324,
+      "exit_code": 0
+    },
+    "optimized-1m": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/bench-postgres-configuration",
+        "--disposable-database",
+        "--iterations",
+        "30",
+        "--write-iterations",
+        "30",
+        "--plans"
+      ],
+      "database": "gpforum_perf_config_b_1m",
+      "started_at": 1792232002.498214,
+      "elapsed_seconds": 150.71408915519714,
+      "exit_code": 0
+    },
+    "optimized-outbox": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/performance-outbox.pl",
+        "--messages",
+        "1000",
+        "--workers",
+        "1,2",
+        "--repetitions",
+        "3",
+        "--json"
+      ],
+      "database": "postgres",
+      "started_at": 1792232153.215591,
+      "elapsed_seconds": 4.896131992340088,
+      "exit_code": 0
+    },
+    "baseline-100k": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/bench-postgres-configuration",
+        "--disposable-database",
+        "--iterations",
+        "100",
+        "--write-iterations",
+        "30",
+        "--plans"
+      ],
+      "database": "gpforum_perf_config_a_100k",
+      "exit_code": 0
+    },
+    "baseline-outbox-resources": {
+      "command": [
+        "script/gpforum-carton",
+        "exec",
+        "script/performance-outbox.pl",
+        "--messages",
+        "1000",
+        "--workers",
+        "1,2",
+        "--repetitions",
+        "3",
+        "--json"
+      ],
+      "database": "postgres",
+      "exit_code": 0,
+      "phase": "after restoring original configuration; same resource instrumentation as optimized-outbox"
+    }
+  },
+  "other_postgres_instances": "Other idle local clusters exist; not stopped or reconfigured. Background OS activity is uncontrolled.",
+  "cluster_system_identifier": "7697570634189673803",
+  "git_worktree": "Implementation changes were uncommitted during measurement.",
+  "artifact_sha256": {
+    "verify-optimized.json": "10fde7a81ca736997e03aa935e75f6c9d183b148e33d62a541e5675cfd837893",
+    "restore.jsonl": "d91db5612581fff5c9c770b7c902277ba1051107010282c241b2f608bbe852a8",
+    "optimized-100k.json": "415c25742a18414a55d7eb6c3840a6926f589be4f8bd0ead2adc0d92d791eaa5",
+    "optimized-1m.json": "b2a58e82c464d16a90b6cf37e13141080f46b9c5ff9a7af548ccae61aebc5503",
+    "apply.jsonl": "1d7b2cefe535877c4a0b810f9862750c1d49daeaf6b48bce8b9a479ffc30906d",
+    "comparison.json": "7f2dc726dc9400448f975865614fb7b69fb99af0904992fcd5d1067bc7d249e2",
+    "README.md": "34b93a7df8c0581d76a3fcfd338fcb1d7cf458074845a459dd05b7ee897a8330",
+    "optimized-plan.json": "83262067f9e4b1e2aef467514669c2c9e090c8168f8d08181e7a1f821ef45603",
+    "baseline-1m.json": "f93e6099255ae3b5e02158f7474dd35dd69b66227391210bfdc404d3a6164dc0",
+    "validation.json": "b0406421c2aea90017a4d1adeda16772e1fffd91b21126f43c2eb8626c259845",
+    "optimized-outbox.json": "9bc776e42faf076e4ebbf847e1819a119d913d4daba9bca4506a23ed40f375fe",
+    "prepare-1m.json": "cec8c31ad75d4a5428fcb1e2af1d539fbc14a798bb1373ff0b22c563278bf193",
+    "verify-restored-original.json": "dbb0f11523ae039428c6fb8ef0d7b739c159b431373a8fefa4b688d131c367e0",
+    "baseline-outbox.json": "fffdab4d4918c49fa715578a346ed0d8bea6c5e0bd6414c1c8993a867871c17c",
+    "baseline-outbox-resources.json": "f1f1d2be3827b0b66b000babd9ee6c4df915f6ff9423bb072d52f219875aca8e",
+    "planner-statistics.json": "70a8bdb2122bbbed437899139cd0acaab4d6f4b296aebe84867b7dfc5099b613",
+    "baseline-100k.json": "b5f13930ef30bf6778a13933861fb9eebb5b5daf1b56eb7b7047968c4ee5f386"
+  },
+  "final_implementation_sha256": {
+    "lib/GPForum/Benchmark/PostgresMetrics.pm": "c9bb833454e8cfe31fdff01c6d6a2f1b098884de9e92a35ec34dd8762176f3ef",
+    "lib/GPForum/CLI/postgres_performance.pm": "ea2bfd98f2849829d82b1bda56809f5be20a8b0ff3ca23286808d5df0685ea4b",
+    "lib/GPForum/Command/PostgresPerformance.pm": "a342cff5a3d6fa55f3915ea4c40a02b14cd2b60f3ab5648e09cee9e218cb8236",
+    "lib/GPForum/Command/Support/Verbs.pm": "8017aa3d0f68b670a7962321b25f0c0bd82269e3bbe51f8818a6d4d41488323b",
+    "lib/GPForum/Command/Support/Words.pm": "219c59583dbeaf0f582dd82352a5c694fd12fb07d41f51cf8f7be7511ab71731",
+    "lib/GPForum/Config.pm": "b9b1ccefa21142eca7f334ecaf49a7288c2bbe8fd17fe2826cf70ee0e89544bc",
+    "lib/GPForum/Infrastructure/PostgresPerformance.pm": "87a5f2502a60393e0a8d12dd8e7103bb0016376edf50283e3c4d3a1800e9fe8a",
+    "lib/GPForum/Infrastructure/PostgresProfile.pm": "74aa469d98105c776619784a78346848b960e0c494c505165febbaf511442afa",
+    "lib/GPForum/OS/RuntimeEvidence.pm": "03285da27d25b583daba445c1d8e8b5082eafacd093d9b85a9f648efe285a82d",
+    "lib/GPForum/Schema.pm": "9d653cd4f7711721298a8b06acba6e263f9d6013c5aae64723fbd8b2a3d2e186",
+    "lib/GPForum/Service/Admin/Settings.pm": "4bca33424a092b4b599f347858814d4fa3af616eeb6741e8048b4fc043fae427",
+    "lib/GPForum/Service/Operations/Readiness.pm": "f0c96fb1c2c77426f7315f5d8deb784c55dc72207ed8c953aa32eaf93faad323",
+    "lib/GPForum/Service/Operations/ReadinessFindings.pm": "3ea4ca854ffd9c405dc604af41dd39e929a5d00d35b82bbd8ad3c5385d941370",
+    "script/bench-postgres-configuration": "b0d950a9791f45a903d33c5d92a8830b1338a232a41696944a1e6e4e43a1a7b0",
+    "script/bench-sql-functions": "9dea0ef9d1efaf0d7ac64e5c5378af87d22cbde18806ce0d756333a7cab19d56",
+    "script/lib/GPForum/PostgreSQL/Queries.pm": "020606c56d1a9c3777a08317c9a4026c51eb033515711136f47fb18186254a97",
+    "script/performance-outbox.pl": "ea9697a7827a915920acfc71fee28fb08b4d784c0b3d213092ac30154b4d6cae",
+    "t/33-health-readiness.t": "87ea7ef52936e6564a955649f78d0054a4bb58e31db568867a2ef47a0fbce343",
+    "t/851-postgres-performance.t": "b5cf1bc1b308769559e088a3fb1b101bc97e6a0beb77b50c60162d6f998d209d",
+    "t/integration/postgres-performance-control.t": "a9d347bb6264444dc9b46b0e4d7aa7dc451dc5ec3caa1b0ad1935dde69bea550",
+    "t/lib/GPForum/Test/PostgresSettingsDbh.pm": "bec45560905bd8cf4ace0439df2d09e8d2990e919251927f21564b31f823b6ea"
+  }
+}

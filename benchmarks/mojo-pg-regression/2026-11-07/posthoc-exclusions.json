@@ -1,0 +1,11 @@
+{
+  "observed_at": 1794008060.64397,
+  "excluded": {
+    "complete-a": "Foreign full integration suite used perl -S prove, missed by original monitor. Its process start predates this run.",
+    "complete-b": "Same foreign integration suite overlapped this run."
+  },
+  "process_evidence": [
+    "29847 29792 Sat Nov  7 00:32:04 2026           02:16 /Users/gpicchiarelli/perl5/perlbrew/perls/perl-5.44.0-cve-2026-15534/bin/perl -S prove -l -It/lib -j2 -r t/integration"
+  ],
+  "monitor_fix": "campaign-v2 also detects perl -S prove, direct integration interpreters and node --test"
+}

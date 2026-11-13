@@ -1,0 +1,324 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package main;
+
+use v5.40;
+
+use Const::Fast;
+use Carp qw(croak);
+use Test::Mojo;
+use File::Temp;
+use Test::More;
+
+use lib 'lib';
+use lib 't/lib';
+
+use GPForum::Service::Password;
+use GPForum::Test::PgDatabase;
+
+our $VERSION = '0.001';
+
+local $ENV{GPFORUM_BENCHMARK_QUERY_HEADERS} = 1;
+
+const my $HTTP_OK             => 200;
+const my $PASSWORD            => 'correct horse battery';
+const my $FEW_ROWS            => 1;
+const my $MANY_ROWS           => 50;
+const my $FILES_ON_POSTS      => 3;
+const my $CONFIGURATION_READS => 1;
+const my %OBSERVED_ENDPOINTS => map { $_ => 1 }
+  qw(categories category home notifications search thread);
+
+# Statements each page may execute, as measured on 2026-09-26. Raising one
+# is a decision to write down in the commit, not a number to bump. The
+# thread page took two more on 2026-10-15, one each for the likes (ADR
+# 0129) and the reply targets (ADR 0132), and the category, home and
+# thread pages one more each for the tags of their threads (ADR 0135): one statement per page, however many rows, as the fifty-row
+# comparison below proves. The signed-in bookmarks page took one more on
+# 2026-10-15 for the member's folders (ADR 0136). On 2026-10-17 the
+# thread page's reads after its posts -- likes, reply targets, tags,
+# attachment links, and a member's bookmark, subscription and read state --
+# became one statement: six fewer signed in, three for a guest.
+# On 2026-10-17 the profile reads the picture the member shows (ADR 0144):
+# one more. A signed-in profile now reads private follow state in one bounded
+# statement. Every page also reads the authoritative GUI configuration once
+# (ADR 0160), including cache hits, so saved settings are applied immediately.
+# Keep that shared cost explicit instead of hiding it from instrumentation.
+const my %BUDGET => (
+    anonymous => {
+        categories => 1,
+        category   => 3,
+        home       => 3,
+        profile    => 6,
+        search     => 3,
+        thread     => 3,
+    },
+    'signed in' => {
+        bookmarks     => 4,
+        categories    => 3,
+        category      => 5,
+        feed          => 3,
+        home          => 5,
+        notifications => 4,
+        profile       => 9,
+        search        => 5,
+        thread        => 5,
+    },
+);
+
+if ( !GPForum::Test::PgDatabase->admin_dsn ) {
+    plan skip_all => 'set GPFORUM_TEST_DSN to run the query budget';
+}
+
+# How many statements each page sends to PostgreSQL, against the seeded
+# forum (quality program: "a query budget per request"). A page that grows a
+# query per row -- an N+1 -- sends more statements for fifty rows than for
+# one; every page here must send the same number for both. And each page
+# must stay within the budget measured when this test was written, so a new
+# query on a hot page is a decision, not an accident.
+local $ENV{GPFORUM_MINION_ENABLED}            = 0;
+local $ENV{GPFORUM_REALTIME_LISTENER_ENABLED} = 0;
+my $database = GPForum::Test::PgDatabase->fresh( seed => 1 );
+local $ENV{GPFORUM_DATABASE_DSN} = $database->dsn;
+my $dbh = $database->dbh;
+
+my ($category) = $dbh->selectrow_array(
+        q{SELECT c.category_id FROM categories c JOIN threads t}
+      . q{ ON t.category_id = c.category_id WHERE c.visibility = 'public'}
+      . q{ AND t.deleted_at IS NULL GROUP BY c.category_id}
+      . q{ ORDER BY count(*) DESC LIMIT 1} );
+my ($thread) =
+  $dbh->selectrow_array( q{SELECT t.thread_id FROM threads t JOIN posts p}
+      . q{ ON p.thread_id = t.thread_id WHERE t.deleted_at IS NULL}
+      . q{ AND t.visibility = 'public' AND t.moderation_state = 'visible'}
+      . q{ GROUP BY t.thread_id ORDER BY count(*) DESC LIMIT 1} );
+my ($author) =
+  $dbh->selectrow_array( q{SELECT u.username FROM users u JOIN threads t}
+      . q{ ON t.author_user_id = u.id WHERE u.status = 'active' LIMIT 1} );
+my $member = _member();
+_attach_files( $dbh, $thread );
+
+my %pages = (
+    category   => "/c/$category",
+    categories => '/categories',
+    home       => q{/},
+    profile    => "/u/$author",
+    search     => '/search?q=the',
+    thread     => "/t/$thread",
+);
+my %signed_in_pages = (
+    %pages,
+    bookmarks     => '/bookmarks',
+    feed          => '/feed',
+    notifications => '/notifications',
+);
+
+my %execution_files;
+my $anonymous = _instrumented('anonymous');
+my $signed_in = _instrumented('signed in');
+_sign_in($signed_in);
+
+for my $name ( sort keys %pages ) {
+    _check( $anonymous, 'anonymous', $name, $pages{$name} );
+}
+for my $name ( sort keys %signed_in_pages ) {
+    _check( $signed_in, 'signed in', $name, $signed_in_pages{$name} );
+}
+
+# The comparison proves something only if fifty rows are shown.
+cmp_ok( _rows( "/t/$thread", 'article[id^="post-"]' ),
+    q{>}, $FEW_ROWS, 'the thread page shows more than one post' );
+cmp_ok( _rows( "/c/$category", 'a[href^="/t/"]' ),
+    q{>}, $FEW_ROWS, 'the category page lists more than one thread' );
+
+# The files under the posts are read with the page's other extras: a file
+# on each of the first posts, so fifty rows list more files than one and an
+# N+1 on them would show above.
+cmp_ok( _rows( "/t/$thread", '.post__attachments li' ),
+    q{>}, $FEW_ROWS, 'the thread page lists the files of its posts' );
+
+done_testing();
+
+sub _check {
+    my ( $client, $who, $name, $path ) = @_;
+
+    my $separator = $path =~ /[?]/msx ? q{&} : q{?};
+    _statements( $client, $who, "$path${separator}limit=$MANY_ROWS&warm=1" );
+    my $few = _statements( $client, $who, "$path${separator}limit=$FEW_ROWS" );
+    my $many =
+      _statements( $client, $who, "$path${separator}limit=$MANY_ROWS" );
+    diag(
+        "$who $name: $few statements for $FEW_ROWS rows, $many for $MANY_ROWS");
+    is( $many, $few, "$who $name: fifty rows cost no more queries than one" );
+    my $budget = $BUDGET{$who}{$name} + $CONFIGURATION_READS;
+    cmp_ok( $many, q{<=}, $budget,
+        "$who $name: within its budget of $budget including live configuration"
+    );
+    my $headers = $client->tx->res->headers;
+    is( $headers->header('X-GPForum-DB-Queries'),
+        $many,
+        "$who $name: the runtime observer counts every raw DBI execution" );
+    is(
+        $headers->header('X-GPForum-DB-Budget'),
+        exists $OBSERVED_ENDPOINTS{$name} ? 'ok' : 'none',
+        "$who $name: the runtime observer agrees with the measured page cost"
+    );
+
+    return;
+}
+
+# An application whose handle counts every statement it executes, before
+# it has prepared any: a statement cached later is still counted each time
+# it runs (counting prepares missed those). DBI runs selectrow_array,
+# selectrow_arrayref and selectall_arrayref without calling execute, so
+# those are counted where they are called.
+sub _instrumented {
+    my ($who) = @_;
+
+    my $client  = Test::Mojo->new('GPForum');
+    my $schema  = $client->app->build_controller->gp_schema;
+    my $storage = $schema->storage;
+
+    # A shared append-only descriptor also records executions in isolated
+    # service children. A copied Perl counter observes only the HTTP parent.
+    my $counter = $execution_files{$who} = File::Temp->new( UNLINK => 1 );
+    my $count   = sub ( $handle, @arguments ) {
+        my $statement =
+          ref($handle) eq 'DBI::st' ? $handle->{Statement} : $arguments[0];
+
+        # DBI's begin_work/commit were never application queries in this
+        # observer. Explicit native async controls keep that same contract;
+        # transaction counts are observed separately by the runtime.
+        return
+          if ( $statement // q{} ) =~
+          /\A(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/msx;
+        syswrite( $counter, q{x} ) == 1
+          or croak 'cannot record raw query execution';
+        return;
+    };
+    $storage->dbh->{Callbacks} = {
+        ChildCallbacks     => { execute => $count },
+        do                 => $count,
+        selectall_arrayref => $count,
+        selectrow_array    => $count,
+        selectrow_arrayref => $count,
+    };
+
+    # Native asynchronous reads lease other connections from this pool.
+    $storage->pg->on(
+        connection => sub ( $pg, $dbh ) {
+            $dbh->{Callbacks} = {
+                ChildCallbacks     => { execute => $count },
+                do                 => $count,
+                selectall_arrayref => $count,
+                selectrow_array    => $count,
+                selectrow_arrayref => $count,
+            };
+        }
+    );
+
+    return $client;
+}
+
+# Statements one page executes.
+sub _statements {
+    my ( $client, $who, $path ) = @_;
+
+    # Each page is built, not answered from the page cache or the category
+    # list's: they ignore parameters other than the page size.
+    my $controller = $client->app->build_controller;
+    my $cache      = $controller->gp_local_cache;
+    for my $tag (qw(forum:public-html categories forum-index)) {
+        $cache->invalidate_tag($tag);
+    }
+
+    # Search now has its own bounded result cache. Compare uncached SQL work
+    # for both page sizes, just as for the public HTML and category caches.
+    my $search_cache = $controller->gp_search_service->result_cache;
+    if ($search_cache) { $search_cache->clear; }
+    my $before = -s $execution_files{$who};
+    $client->get_ok( $path => { 'Accept-Language' => 'en' } )
+      ->status_is($HTTP_OK);
+
+    return ( -s $execution_files{$who} ) - $before;
+}
+
+sub _rows {
+    my ( $path, $selector ) = @_;
+
+    $anonymous->get_ok("$path?limit=$MANY_ROWS&rows=1");
+
+    return $anonymous->tx->res->dom->find($selector)->size;
+}
+
+# One available, clean file on each of the thread's first posts.
+sub _attach_files {
+    my ( $handle, $thread_id ) = @_;
+
+    my $posts = $handle->selectcol_arrayref(
+        q{SELECT post_id FROM posts WHERE thread_id = ?}
+          . q{ ORDER BY position LIMIT ?},
+        undef, $thread_id, $FILES_ON_POSTS
+    );
+    my ($owner) = $handle->selectrow_array(
+        q{SELECT author_user_id FROM posts WHERE post_id = ?},
+        undef, $posts->[0] );
+    for my $post ( @{$posts} ) {
+        my ($attachment) = $handle->selectrow_array(
+            q{INSERT INTO attachments (attachment_id, owner_user_id,}
+              . q{ object_key, original_filename, media_type, byte_size,}
+              . q{ checksum, state, scan_status) VALUES (gen_random_uuid(),}
+              . q{ ?, 'budget/' || ?, 'budget.txt', 'text/plain', 6,}
+              . q{ 'sha256:0', 'available', 'clean') RETURNING attachment_id},
+            undef, $owner, $post
+        );
+        $handle->do(
+            q{INSERT INTO attachment_links (attachment_link_id,}
+              . q{ attachment_id, target_type, target_id)}
+              . q{ VALUES (gen_random_uuid(), ?, 'post', ?)},
+            undef, $attachment, $post
+        );
+    }
+
+    return;
+}
+
+sub _member {
+    my $hash = GPForum::Service::Password->new->hash_password($PASSWORD);
+    my ($id) = $dbh->selectrow_array(
+        q{INSERT INTO users (id, username, display_name, email_normalized,}
+          . q{ password_hash, status) VALUES (gen_random_uuid(), 'budget',}
+          . q{ 'Budget', 'budget@example.test', ?, 'active') RETURNING id},
+        undef, $hash
+    );
+    $dbh->do(
+        q{INSERT INTO credentials (id, user_id, type, secret_hash)}
+          . q{ VALUES (gen_random_uuid(), ?, 'password', ?)},
+        undef, $id, $hash
+    );
+
+    return $id;
+}
+
+sub _sign_in {
+    my ($client) = @_;
+
+    $client->get_ok('/login');
+    my $form    = $client->tx->res->dom;
+    my $csrf    = $form->at('input[name=csrf_token]')->attr('value');
+    my $command = $form->at('input[name=command_id]')->attr('value');
+    $client->post_ok(
+        '/login' => form => {
+            command_id => $command,
+            csrf_token => $csrf,
+            identifier => 'budget',
+            password   => $PASSWORD,
+        }
+    );
+    $client->get_ok('/settings')->status_is( $HTTP_OK, 'the member signs in' );
+
+    return;
+}
+
+1;

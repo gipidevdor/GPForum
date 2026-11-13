@@ -1,0 +1,45 @@
+% layout 'default';
+% title t('form.attach_file') . ' - ' . t('app.name');
+<section class="editor-panel" aria-labelledby="upload-heading">
+  <%= include 'components/page_header', heading_id => 'upload-heading', component_title => t('form.attach_file'), description => t('media.upload_to_post') %>
+  <p><a href="<%= $post_url %>"><%= t('media.back_to_post') %></a></p>
+  <blockquote><%= $post_excerpt %></blockquote>
+  % if ($error) {
+    <%= include 'components/alert', tone => 'error', message => $error %>
+  % }
+  <form method="post" enctype="multipart/form-data" action="<%= ui_path('post_attachment_upload', post_id => $post_id) %>">
+    <%= csrf_field %>
+    <input type="hidden" name="command_id" value="<%= $command_id %>">
+    <input type="hidden" name="upload_form" value="1">
+    <%= include 'components/attachment_upload_fields', dom_id => 'post-' . $post_id, media_max_mib => $media_max_mib %>
+  </form>
+  % if (@{$uploads}) {
+    <section aria-labelledby="post-files-heading">
+      <h2 id="post-files-heading"><%= t('media.your_post_files') %></h2>
+      <ul class="ui-card-list">
+        % for my $file (@{$uploads}) {
+          <li class="ui-card-list__item">
+            <p><%= $file->{original_filename} %> · <%= $file->{media_type} %> · <%= sprintf '%.1f MiB', $file->{byte_size} / (1024 * 1024) %></p>
+            % if ($file->{content_status} eq 'approved' && $file->{state} eq 'available' && $file->{scan_status} eq 'clean') {
+              <a href="<%= ui_path('attachment_download', attachment_id => $file->{attachment_id}) %>"><%= t('media.preview') %></a>
+            % } else {
+              <p role="status"><%= t($file->{content_status} eq 'rejected' ? 'media.file_rejected' : 'media.file_unavailable') %></p>
+              % if (length($file->{reason} // q{})) {
+                <p><%= $file->{reason} %></p>
+              % }
+            % }
+            <form method="post" action="<%= ui_path('post_attachment_delete', post_id => $post_id, attachment_id => $file->{attachment_id}) %>">
+              <%= csrf_field %>
+              <input type="hidden" name="command_id" value="<%= $file->{delete_command_id} %>">
+              <input type="hidden" name="upload_form" value="1">
+              <button type="submit" class="button--danger"><%= t('forum.delete_attachment') %></button>
+            </form>
+          </li>
+        % }
+      </ul>
+    </section>
+    % if ($next_page) {
+      <p><a href="<%= $next_page %>"><%= t('media.older_uploads') %></a></p>
+    % }
+  % }
+</section>

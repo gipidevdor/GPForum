@@ -1,0 +1,168 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Web::HomeAccess;
+
+use Const::Fast;
+use Mojo::Base -base, -signatures;
+use v5.40;
+
+use GPForum::Web::Responder;
+use GPForum::Web::ForumAccess;
+use GPForum::Web::RequestPreference;
+
+our $VERSION = '0.001';
+
+const my $HTTP_OK              => 200;
+const my $HTTP_SERVER_ERROR    => 500;
+const my $CATEGORY_LIMIT       => 12;
+const my $THREAD_LIMIT         => 20;
+const my $INDEX_TEMPLATE       => 'home/index';
+const my $UNAVAILABLE_TEMPLATE => 'home/unavailable';
+
+sub query ( $, $after ) {
+    return {
+        after          => $after,
+        category_limit => $CATEGORY_LIMIT,
+        thread_limit   => $THREAD_LIMIT,
+    };
+}
+
+# The page's data only: runtime diagnostics stay behind the operations
+# token of /health (ADR 0026).
+sub page_payload ( $, $home ) {
+    return { home => $home };
+}
+
+sub failure_payload {
+    return {
+        error  => 'home_unavailable',
+        status => 'fail',
+    };
+}
+
+sub cache_options ( $, $controller ) {
+    return undef
+      if length( $controller->param('after') // q{} )
+      || GPForum::Web::RequestPreference->wants_json($controller)
+      || GPForum::Web::RequestPreference->wants_fragment($controller);
+    return GPForum::Web::ForumAccess->new->public_cache_options(
+        {
+            name   => 'home',
+            path   => q{/},
+            locale => $controller->ui_locale,
+            theme  => $controller->ui_theme,
+            limit  => $THREAD_LIMIT,
+            tags   => [ 'forum:categories', 'forum:threads' ],
+        }
+    );
+}
+
+sub render_page ( $, $controller, $payload, $cache = undef ) {
+    return GPForum::Web::Responder->new->payload(
+        {
+            controller    => $controller,
+            payload       => $payload,
+            status        => $HTTP_OK,
+            template      => $INDEX_TEMPLATE,
+            cache_options => $cache,
+        }
+    );
+}
+
+sub render_unavailable ( $self, $controller ) {
+    return GPForum::Web::Responder->new->error(
+        {
+            controller => $controller,
+            payload    => $self->failure_payload,
+            status     => $HTTP_SERVER_ERROR,
+            template   => $UNAVAILABLE_TEMPLATE,
+        }
+    );
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Web::HomeAccess - Home page query and render contracts.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $query = $access->query( $controller->param('after') );
+    return $access->render_unavailable($controller);
+
+=head1 DESCRIPTION
+
+Owns home reader limits, the success payload shape, and the custom
+C<home_unavailable> 500 contract. It does not read the forum store.
+L<GPForum::Controller::Home> still evaluates the home-page reader and logs
+failures. This is not L<GPForum::Web::Guard>: the unavailable page keeps its
+own error code and template.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 query
+
+Returns the home-page reader input, including category and thread limits.
+
+=head2 page_payload
+
+Returns the success hash, C<home>. Runtime diagnostics are not part of
+it: they are served by C</health> to holders of the operations token.
+
+=head2 failure_payload
+
+Returns the C<home_unavailable> error hash.
+
+=head2 cache_options
+
+Returns the public home-page cache options for the controller's locale and
+theme. Cursor, JSON and fragment requests return C<undef> and bypass this
+full-page cache.
+
+=head2 render_page
+
+Renders the home index through L<GPForum::Web::Responder>.
+
+=head2 render_unavailable
+
+Renders the home unavailable page as HTTP 500.
+
+=head1 DIAGNOSTICS
+
+JSON versus HTML negotiation stays inside L<GPForum::Web::Responder>.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+Uses L<Const::Fast>, L<Mojo::Base>, and L<GPForum::Web::Responder>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+The home reader call and error logging remain in the controller, so the
+try/catch around the read stays in C<show>.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

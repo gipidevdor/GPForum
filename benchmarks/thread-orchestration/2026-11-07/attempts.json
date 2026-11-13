@@ -1,0 +1,13 @@
+{
+  "failed-nytprof": "Excluded: profiler/runtime incompatibility at startup, zero measured HTTP cells; retained logs. Clock12 also unsupported by compiled NYTProf. No profiler throughput claimed.",
+  "partial-phase-capture": "Excluded for phase attribution: worker counters lost on TERM. HTTP cells completed; retained raw.",
+  "phase-terminated-before-flush": "Excluded for phase attribution: finish hook was bypassed by harness TERM. Changed diagnostic shutdown to native graceful QUIT; application signal handlers untouched.",
+  "diagnostics": "Accepted instrumentation: all8worker counters flushed. Instrumentation overhead means this is phase evidence, not capacity.",
+  "baseline": "Accepted uninstrumented published05f reference.",
+  "transport-only": "Accepted isolated native transport subset.",
+  "read-candidate": "Accepted isolated read-orchestration subset, intermediate target achieved in median.",
+  "integrated-competing-tests": "Excluded from capacity comparison: another session started passkey browser test and full feature suite while running.30cells completed without HTTP errors; monitor detected peers in91samples.",
+  "integrated-thread": "Accepted:6cells8023responses0errors,3reps,no detected peers,cleanpublished756source.100sessions plus mandatory1clientcells.",
+  "integrated-write": "Accepted:6cells, mixed/auth10sessions,3reps,cleanpublished756source,no detected peers.",
+  "integrated-reference-competing-tests": "Excluded:12cells completed0errors,but19monitor samples contained another session browser tests. Raw metrics retained, not used to select a better result."
+}

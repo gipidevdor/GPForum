@@ -1,0 +1,6 @@
+% my $preview = stash('composer_preview_html');
+<section class="composer-preview" data-composer-preview aria-label="<%= t('forum.draft_preview') %>"<%== defined $preview ? q{} : ' hidden' %>>
+  <h2><%= t('forum.draft_preview') %></h2>
+  <p class="composer-preview-status" data-preview-status role="status" aria-live="polite"></p>
+  <div class="forum-post-body" data-preview-body><%== defined $preview ? ui_trusted_html($preview, 'forum.post.body') : q{} %></div>
+</section>

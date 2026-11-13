@@ -1,0 +1,3 @@
+# Keep archived git diffs byte-exact: blank context lines contain a space.
+benchmarks/http-complete/**/source.patch -text -whitespace
+benchmarks/thread-tail/**/*.patch -text -whitespace

@@ -1,0 +1,11 @@
+%# Keep frequent destinations here; the complete role-aware catalogue is in Menu.
+% my $here = current_route() // q{};
+% my $current = sub { return $here eq shift ? ' aria-current="page"' : q{} };
+<nav class="site-nav" aria-label="<%= t('nav.primary') %>">
+  <a href="<%= ui_path('categories') %>"<%== $current->('categories') %>><%= ui_icon('categories') %><%= t('nav.categories') %></a>
+  <a class="site-nav__search" href="<%= ui_path('forum_search') %>"<%== $current->('forum_search') %>><%= ui_icon('search') %><%= t('nav.search') %></a>
+  % if (session('user_id')) {
+    <a href="<%= ui_path('notifications') %>" data-notification-link aria-label="<%= t('nav.notifications') %>" data-summary-url="<%= ui_path('notifications_summary') %>" data-notification-label="<%= t('nav.notifications') %>"<% if (ui_realtime_enabled) { %> data-realtime-url="<%= ui_path('realtime') %>" data-realtime-channel="notifications:<%= session('user_id') %>"<% } %><%== defined stash('unread_count') ? ' data-initial-count="' . (0 + stash('unread_count')) . '"' : q{} %><%== $current->('notifications') %>><%= ui_icon('bell') %><span class="site-nav__label"><%= t('nav.notifications') %></span> <span class="notification-count" data-notification-count aria-hidden="true" hidden></span></a>
+    <a class="site-nav__messages" href="<%= ui_path('messages') %>" aria-label="<%= t('nav.messages') %>"<%== $current->('messages') %>><%= ui_icon('message') %><span class="site-nav__label"><%= t('nav.messages') %></span></a>
+  % }
+</nav>

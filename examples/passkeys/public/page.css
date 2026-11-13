@@ -1,0 +1,10 @@
+/* SPDX-FileCopyrightText: 2026 GPForum Contributors
+ * SPDX-License-Identifier: BSD-3-Clause */
+:root { color-scheme: light dark; font: 1rem/1.6 system-ui, sans-serif; }
+body { margin: 0; background: light-dark(#fffdf7, #24211f); color: light-dark(#24211f, #fffdf7); }
+main { max-width: 44rem; margin: 4rem auto; padding: 0 1.25rem; }
+h1 { line-height: 1.2; }
+button { font: inherit; padding: .6rem 1rem; cursor: pointer; border: 2px solid currentColor; border-radius: .3rem; }
+button:focus-visible { outline: 3px solid #ad7b21; outline-offset: 4px; }
+button:disabled { opacity: .65; cursor: wait; }
+#passkey-status { min-height: 3rem; }

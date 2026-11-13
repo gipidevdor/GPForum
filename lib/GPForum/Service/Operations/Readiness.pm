@@ -1,0 +1,659 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Operations::Readiness;
+
+use Const::Fast;
+use Time::HiRes qw(time);
+use Mojo::Base -base, -signatures, -async_await;
+use v5.40;
+
+use Carp qw(croak);
+
+use GPForum::Config;
+use GPForum::Infrastructure::PostgresPerformance;
+use GPForum::Service::Clock;
+use GPForum::Service::I18N::CliCatalog;
+use GPForum::Service::Operations::OSPreflight;
+use GPForum::Service::Operations::PartitionLifecycle;
+use GPForum::Service::Operations::Profile;
+use GPForum::Service::Operations::QueryBudget;
+use GPForum::Service::Operations::Replication;
+
+use GPForum::Infrastructure::SqlFunction;
+
+use GPForum::Infrastructure::AsyncQuery;
+use GPForum::Infrastructure::AsyncWork;
+use GPForum::X::Unavailable;
+
+our $VERSION = '0.001';
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+
+const my $MILLISECONDS_PER_SECOND => 1000;
+const my $MAX_ERROR_LENGTH        => 240;
+
+# The system antivirus (ADR 0108), or undef when scanning is off.
+has antivirus      => undef;  # optional: without one the check reports disabled
+has cache          => undef;  # optional: without one the check reports local
+has clock          => sub { return GPForum::Service::Clock->new; };
+has config         => undef;                 # optional: from the environment
+has environment    => 'development';
+has glifistore_url => sub { return q{}; };
+
+# The WAL an inactive replication slot may keep before readiness degrades.
+# Undef takes the configuration's, then Replication's default (1 GiB).
+has replication_slot_max_retained_bytes => undef;    # optional: the config's
+has runtime        => undef;    # optional: without one the runtime check fails
+has runtime_policy => undef;    # optional: without one its check is skipped
+has schema         => undef;    # optional: without one the database checks fail
+
+# How long recent_check answers from the last report, in seconds.
+has reuse_seconds => 2;
+
+# The last report recent_check made, and when, and the check still running
+# for it: built in new, so every blocking copy keeps them in the same place.
+has _memo => sub { return {}; };
+
+# Where the operator goes when a check is not ok: every check readiness can
+# return has a runbook, and a check that is degraded or failed carries its
+# path, so a warning on /health/ready says what to do about it. The missing
+# tables point at the migrations, which create them.
+const my $MIGRATIONS_RUNBOOK => 'docs/DEPLOYMENT.md#postgresql-baseline';
+const my %RUNBOOK => (
+    antivirus            => 'docs/ops/antivirus.md',
+    database             => 'docs/DEPLOYMENT.md#postgresql-baseline',
+    postgres_performance => 'docs/ops/postgres-performance.md',
+    endpointquerybudget  => $MIGRATIONS_RUNBOOK,
+    eventlog             => $MIGRATIONS_RUNBOOK,
+    operational_profile  => 'docs/architecture/operational-profiles.md',
+    os_preflight         => 'docs/OS_RUNTIME_ENFORCEMENT.md',
+    outboxmessage        => $MIGRATIONS_RUNBOOK,
+    partition_horizon    => 'docs/ops/partition-maintenance.md',
+    query_budget_drift   => 'docs/PERFORMANCE.md#query-budgets',
+    replication_slots    => 'docs/ops/standby-and-failover.md#watch-the-lag',
+    runtime              => 'docs/OS_RUNTIME_ENFORCEMENT.md',
+    runtime_enforcement  => 'docs/OS_RUNTIME_ENFORCEMENT.md',
+    shared_cache         => 'docs/DEPLOYMENT.md#glifistore-optional',
+);
+
+# Every check name readiness can return, with its runbook.
+sub runbooks ($class) {
+    return {%RUNBOOK};
+}
+
+sub new ( $class, @arguments ) {
+    my $self = $class->SUPER::new(@arguments);
+    $self->_memo;
+
+    return $self;
+}
+
+# The report is built once, as its promise method (ADR 0177); check and
+# recent_check are its blocking twins.
+GPForum::Infrastructure::SqlFunction->blocking_twins(qw(check recent_check));
+
+# The report: the host checks (OS, runtime, cache, antivirus) run in a
+# CPU-only child on plain data, or in the process on a blocking layer, whose
+# promise a child would leave pending, while the database checks run on the
+# call layer. A check that throws -- a missing call layer among the causes --
+# is reported failed or degraded; the report itself always answers.
+async sub check_p ( $self, $context = undef ) {
+    my $started   = time;
+    my $functions = $self->functions;
+    my $host =
+      $functions && !$functions->blocking
+      ? GPForum::Infrastructure::AsyncWork->shared->cpu_p(
+        sub { return $self->_host_checks; } )
+      : undef;
+    my %database = (
+        database      => await $self->_db_check_p($context),
+        eventlog      => await $self->_probe_p( 'EventLog',      $context ),
+        outboxmessage => await $self->_probe_p( 'OutboxMessage', $context ),
+        endpointquerybudget =>
+          await $self->_probe_p( 'EndpointQueryBudget', $context ),
+        query_budget_drift =>
+          await $self->_query_budget_drift_check_p($context),
+        partition_horizon => await $self->_catalog_check_p(
+            'partition_horizon',
+            async sub {
+                my $rows =
+                  await $self->_functions->rows_p( 'ops_partition_horizon', {},
+                    $context );
+                return
+                  GPForum::Service::Operations::PartitionLifecycle->new
+                  ->horizon_from_rows( $rows, $self->clock->now_epoch );
+            }
+        ),
+        replication_slots => await $self->_catalog_check_p(
+            'replication_slots',
+            async sub {
+                my $replication =
+                  GPForum::Service::Operations::Replication->new(
+                    max_retained_bytes => $self->_replication_slot_limit );
+                return $replication->slot_report(
+                    await $replication->snapshot_p( $self->_functions,
+                        $context ) );
+            }
+        ),
+        postgres_performance =>
+          await $self->_postgres_performance_check_p($context),
+    );
+    my $local  = $host ? await $host : $self->_host_checks;
+    my @checks = (
+        $database{database},
+        @{ $local->{checks} }{qw(runtime os_preflight runtime_enforcement)},
+        @database{qw(eventlog outboxmessage endpointquerybudget)},
+        $database{query_budget_drift},
+        @{ $local->{checks} }{qw(shared_cache antivirus)},
+        $database{partition_horizon},
+        $local->{checks}{operational_profile},
+        @database{qw(replication_slots postgres_performance)},
+    );
+    return $self->_report( \@checks, $local->{runtime}, $started );
+}
+
+# The report check_p made at most reuse_seconds ago, else a new one; the
+# callers that ask while it is made share it.
+async sub recent_check_p ( $self, $context = undef ) {
+    my $memo   = $self->_memo;
+    my $recent = $memo->{recent};
+    return $recent->{report}
+      if $recent && time - $recent->{at} < $self->reuse_seconds;
+
+    my $pending = $memo->{pending} //= $self->check_p($context);
+    my ( $report, $failure );
+    try { $report = await $pending; }
+    catch ($error) { $failure = $error; };
+
+    # The first caller back keeps the report; on a blocking layer that is
+    # the caller that made it, before any other could ask.
+    if ( $memo->{pending} && $memo->{pending} == $pending ) {
+        delete $memo->{pending};
+        if ( !defined $failure ) {
+            $memo->{recent} = { at => time, report => $report };
+        }
+    }
+    croak $failure if defined $failure;
+
+    return $report;
+}
+
+# The checks that read the host, not PostgreSQL, as plain data.
+sub _host_checks ($self) {
+    return {
+        checks => {
+            runtime             => $self->_runtime_check,
+            os_preflight        => $self->_os_preflight_check,
+            runtime_enforcement => $self->_runtime_enforcement_check,
+            shared_cache        => $self->_shared_cache_check,
+            antivirus           => $self->_antivirus_check,
+            operational_profile => $self->_profile_check,
+        },
+        runtime => $self->runtime ? $self->runtime->as_hash : {},
+    };
+}
+
+# The call layer the database checks read on. Without one the checks fail:
+# a readiness report without its database is a wiring fault to show, not a
+# node to send traffic to.
+sub _functions ($self) {
+    return $self->functions // GPForum::X::Unavailable->throw(
+        message => 'readiness needs the PostgreSQL function layer' );
+}
+
+# A SELECT 1: on a pooled connection, or on a blocking layer on the
+# process's own handle.
+async sub _db_check_p ( $self, $context ) {
+    my $started = time;
+    try {
+        if ( $self->_functions->blocking ) {
+            my $dbh = $self->schema->storage->dbh;
+            $dbh->selectrow_array('SELECT 1');
+        }
+        else {
+            await GPForum::Infrastructure::AsyncQuery->for_schema(
+                $self->schema )
+              ->run_p( sub ($db) { return $db->query_p('SELECT 1'); },
+                $context );
+        }
+    }
+    catch ($error) {
+        return _failed_check( 'database', $started, $error );
+    };
+    return _ok_check( 'database', $started );
+}
+
+# The one-row read readiness makes of each table, api.ops_readiness_probe.
+async sub _probe_p ( $self, $name, $context ) {
+    my $started = time;
+    try {
+        await $self->_functions->row_p( 'ops_readiness_probe',
+            { source => $name }, $context );
+    }
+    catch ($error) {
+        return _failed_check( lc $name, $started, $error );
+    };
+    return _ok_check( lc $name, $started );
+}
+
+async sub _query_budget_drift_check_p ( $self, $context ) {
+    my $started = time;
+    my $report;
+    try {
+        $report =
+          await GPForum::Service::Operations::QueryBudget->new(
+            functions => $self->_functions )->drift_report_p($context);
+    }
+    catch ($error) {
+        return _failed_check( 'query_budget_drift', $started, $error );
+    };
+    return _drift_check( $report, $started );
+}
+
+# A report read from the catalog, degraded when it cannot be read.
+async sub _catalog_check_p ( $self, $name, $read ) {
+    my $started = time;
+    my ( $report, $failure );
+    try { $report = await $read->(); }
+    catch ($error) { $failure = $error; };
+    return _catalog_result( $name, $started, $report, $failure );
+}
+
+# pg_settings against the profile the configuration asks for: on a pooled
+# connection, the profile drawn in a CPU-only child, or on a blocking layer
+# in the process on its own handle. A connection that cannot be had fails
+# the check.
+async sub _postgres_performance_check_p ( $self, $context ) {
+    my $started = time;
+    my $report;
+    try {
+        $report =
+            $self->_functions->blocking
+          ? $self->_postgres_performance_here
+          : await GPForum::Infrastructure::AsyncQuery->for_schema(
+            $self->schema )->run_p(
+            sub ($db) {
+                return GPForum::Infrastructure::PostgresPerformance->new(
+                    config => $self->_config,
+                    dbh    => $db->dbh
+                )->inspect_p($db);
+            },
+            $context
+            );
+    }
+    catch ($error) {
+        return _failed_check( 'postgres_performance', $started, $error );
+    };
+    return _ok_check( 'postgres_performance', $started ) if !$report;
+    return _performance_check( $report, $started );
+}
+
+# The performance report on the process's own handle, or undef for a
+# handle that is not PostgreSQL's -- a test's double -- which has no
+# settings to read.
+sub _postgres_performance_here ($self) {
+    my $dbh = $self->schema->storage->dbh;
+    return undef
+      if !$dbh->isa('DBI::db') || ( $dbh->{Driver}{Name} // q{} ) ne 'Pg';
+
+    return GPForum::Infrastructure::PostgresPerformance->new(
+        config => $self->_config,
+        dbh    => $dbh,
+    )->inspect;
+}
+
+sub _report ( $self, $checks, $runtime, $started ) {
+    for my $check ( @{$checks} ) {
+        next if ( $check->{status}               // q{} ) eq 'ok';
+        next if !exists $RUNBOOK{ $check->{name} // q{} };
+        $check->{runbook} = $RUNBOOK{ $check->{name} };
+    }
+
+    return {
+        status      => _overall_status($checks),
+        checks      => $checks,
+        environment => $self->environment,
+        runtime     => $runtime,
+        timestamp   => $self->clock->now_iso8601,
+        latency_ms  => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+    };
+}
+
+sub _performance_check ( $report, $started ) {
+    return {
+        name   => 'postgres_performance',
+        status => $report->{status},
+        report => $report,
+        reason => join( '; ',
+            map { "$_->{parameter}: $_->{reason}" } @{ $report->{findings} } ),
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+    };
+}
+
+sub _runtime_check ($self) {
+    my $started = time;
+    my $runtime = $self->runtime;
+    return _failed_check( 'runtime', $started, 'runtime profile unavailable' )
+      if !$runtime;
+
+    my $profile = $runtime->as_hash;
+    return _failed_check( 'runtime', $started, 'OS profile unavailable' )
+      if !$profile->{os} || !$profile->{os}{name};
+
+    return _ok_check( 'runtime', $started );
+}
+
+sub _os_preflight_check ($self) {
+    my $started   = time;
+    my $preflight = GPForum::Service::Operations::OSPreflight->new(
+        runtime => $self->runtime,
+        %{ $self->runtime ? $self->runtime->os_preflight_settings || {} : {} },
+    )->check;
+
+    return {
+        name       => 'os_preflight',
+        status     => $preflight->{status},
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        checks     => $preflight->{checks},
+    };
+}
+
+sub _runtime_enforcement_check ($self) {
+    return _ok_check( 'runtime_enforcement', time )
+      if !$self->runtime_policy;
+
+    my $started = time;
+    my $check   = $self->runtime_policy->readiness_check;
+    return {
+        name       => $check->{name},
+        status     => $check->{status},
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        report     => $check->{report},
+    };
+}
+
+# The one-row read api.ops_readiness_probe makes of each table, as a
+# resultset: the query-plan evidence EXPLAINs it.
+sub probe_resultset ( $self, $name ) {
+    return $self->schema->resultset($name)->search_rs( {}, { rows => 1 } );
+}
+
+# Degraded, never failed: an antivirus that cannot scan holds uploads back --
+# they stay pending and unserved -- and the rest of the forum works. Scanning
+# turned off is ok where it is the default and degraded where it is not.
+sub _antivirus_check ($self) {
+    my $started = time;
+    if ( !$self->antivirus ) {
+        my $status =
+          $self->_config->requires_secure_transport ? 'degraded' : 'ok';
+        return _mode_check( 'antivirus', $started, $status, 'format-check' );
+    }
+
+    return {
+        name => 'antivirus',
+        %{
+            $self->antivirus->within_request->health( $self->clock->now_epoch )
+        },
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+    };
+}
+
+# GlifiStore is optional everywhere (D2): without one each process keeps its
+# own cache, which is all a single host needs, and the check is ok with a
+# note saying so. One configured that does not answer leaves the process on
+# its local cache, degraded.
+sub _shared_cache_check ($self) {
+    my $started = time;
+    my $url     = $self->glifistore_url;
+    if ( !defined $url || !length $url ) {
+        return {
+            %{ _mode_check( 'shared_cache', $started, 'ok', 'disabled' ) },
+            note => GPForum::Service::I18N::CliCatalog->new->text(
+                'readiness.shared_cache_local',
+                { variable => 'GPFORUM_GLIFISTORE_URL' }
+            ),
+        };
+    }
+
+    my $cache = $self->cache;
+
+    # A LocalCache has no shared tier to ping: it is the local fallback.
+    if ( $cache && $cache->can('ping') && $cache->ping ) {
+        return _mode_check( 'shared_cache', $started, 'ok', 'shared' );
+    }
+
+    return _mode_check( 'shared_cache', $started, 'degraded',
+        'local-fallback' );
+}
+
+# Degraded, never failed, when partitions run short or rows spill into a
+# DEFAULT partition (3.7): writes still land, and taking the node out of
+# service would not create a partition. Degraded, never failed, too when an
+# inactive replication slot keeps more WAL than the limit or a slot is lost
+# (ADR 0058): the primary still serves, and taking it out of service would
+# not drop the slot.
+sub _catalog_result ( $name, $started, $report, $failure ) {
+    if ( !$report ) {
+        return {
+            %{ _failed_check( $name, $started, $failure ) },
+            status => 'degraded',
+        };
+    }
+
+    return {
+        %{ _ok_check( $name, $started ) },
+        report => $report,
+        status => $report->{status},
+    };
+}
+
+# The attribute's limit, else one a configuration object answers for --
+# GPForum::Config carries no such setting; a test's double does -- else
+# Replication's default.
+sub _replication_slot_limit ($self) {
+    return $self->replication_slot_max_retained_bytes
+      if defined $self->replication_slot_max_retained_bytes;
+
+    my $config = $self->_config;
+    if ( $config->can('replication_slot_max_retained_bytes') ) {
+        my $limit = $config->replication_slot_max_retained_bytes;
+        return $limit if defined $limit;
+    }
+
+    return
+      GPForum::Service::Operations::Replication->default_max_retained_bytes;
+}
+
+sub _mode_check ( $name, $started, $status, $mode ) {
+    my $check = _ok_check( $name, $started );
+    $check->{status} = $status;
+    $check->{mode}   = $mode;
+    return $check;
+}
+
+sub _profile_check ($self) {
+    my $started = time;
+    my $result =
+      GPForum::Service::Operations::Profile->new->evaluate( $self->_config );
+
+    return {
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        name       => 'operational_profile',
+        report     => $result,
+        status     => $result->{ok} ? 'ok' : 'fail',
+    };
+}
+
+sub _config ($self) {
+    if ( $self->config ) {
+        return $self->config;
+    }
+
+    return GPForum::Config->new;
+}
+
+sub _drift_check ( $report, $started ) {
+    return {
+        name       => 'query_budget_drift',
+        status     => $report->{status} eq 'ok' ? 'ok' : 'fail',
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        report     => $report,
+    };
+}
+
+sub _ok_check ( $name, $started ) {
+    return {
+        name       => $name,
+        status     => 'ok',
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+    };
+}
+
+sub _failed_check ( $name, $started, $error ) {
+    return {
+        name       => $name,
+        status     => 'fail',
+        latency_ms => int( ( time - $started ) * $MILLISECONDS_PER_SECOND ),
+        error      => _compact_error($error),
+    };
+}
+
+sub _overall_status ($checks) {
+    for my $check ( @{$checks} ) {
+        return 'fail' if $check->{status} eq 'fail';
+    }
+
+    for my $check ( @{$checks} ) {
+        return 'degraded' if $check->{status} eq 'degraded';
+    }
+
+    return 'ok';
+}
+
+sub _compact_error ($error) {
+    if ( !defined $error ) {
+        $error = q{};
+    }
+    $error =~ s/\s+/ /gmsx;
+    $error =~ s/\A\s+|\s+\z//gmsx;
+
+    return substr $error, 0, $MAX_ERROR_LENGTH;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Operations::Readiness - The checks behind /health/ready.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $report = GPForum::Service::Operations::Readiness->new(
+        config  => $config,
+        runtime => $runtime,
+        schema  => $schema,
+    )->check;
+
+=head1 DESCRIPTION
+
+Whether this node should take traffic: the database answers, the runtime and
+OS posture hold, the tables the forum needs exist, the query budgets match,
+the shared cache (ok with a note when no GlifiStore is configured, which a
+single host does not need), the antivirus and the partition horizon are
+healthy, the
+configuration fits its operational profile, and no replication slot is lost
+or keeps more WAL for an absent standby than the limit
+(C<replication_slot_max_retained_bytes>, 1 GiB by default). A check that
+cannot pass without the node being useless fails; one the forum can live
+without for a while is degraded. Every check that is not ok names its
+runbook.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 new
+
+Builds the service with the memo L</recent_check_p> keeps, so every
+blocking copy (L<GPForum::Infrastructure::SqlFunction/blocking_copy>)
+shares it.
+
+=head2 check_p
+
+Answers a promise of the report: the overall status, the checks, the
+environment, the runtime, a timestamp and the latency. The database checks
+read on the call layer (C<functions>); the host checks run in a CPU-only
+child on the pooled layer and in the process on a blocking one. The report
+is written once, here (ADR 0177).
+
+=head2 check
+
+The blocking twin of L</check_p>.
+
+=head2 recent_check_p
+
+The report of L</check_p>, made at most C<reuse_seconds> (2) ago by this
+object, and the one being made shared with every caller that asks
+meanwhile: what an anonymous C</health/ready> answers its one status word
+from. The whole check is some twenty statements, a clamd round trip and a
+GlifiStore ping, and the endpoint is open to anyone.
+
+=head2 recent_check
+
+The blocking twin of L</recent_check_p>.
+
+=head2 runbooks
+
+Every check name readiness can return, mapped to the runbook a degraded or
+failed check carries in its C<runbook> field.
+
+=head2 probe_resultset
+
+The one-row query a table check makes, as a resultset: the query-plan
+evidence EXPLAINs it.
+
+=head1 DIAGNOSTICS
+
+Never dies: a check that throws is reported failed with its error, or
+degraded for the partition horizon and the replication slots, which the forum
+can serve without. Without a call layer the database checks throw
+L<GPForum::X::Unavailable> and are reported so.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+Reads L<GPForum::Config>, and C<replication_slot_max_retained_bytes> from a
+configuration object that offers it (GPForum::Config has no such setting);
+the attribute of the same name overrides it. The C<shared_cache> check's
+C<note> follows the operator's language
+(L<GPForum::Service::I18N::CliCatalog>).
+
+=head1 DEPENDENCIES
+
+L<GPForum::Service::Operations::PartitionLifecycle>,
+L<GPForum::Service::Operations::Replication>,
+L<GPForum::Service::Operations::QueryBudget>,
+L<GPForum::Service::Operations::Profile>,
+L<GPForum::Infrastructure::SqlFunction>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+None known.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

@@ -1,0 +1,30 @@
+% layout 'default';
+% title t('nav.menu_title') . ' - ' . t('app.name');
+<section aria-labelledby="navigation-heading">
+  <%= include 'components/page_header', heading_id => 'navigation-heading', component_title => t('nav.menu_title'), description => t('nav.menu_description') %>
+  % if (!$navigation_available) {
+    <%= include 'components/alert', tone => 'warning', message => t('nav.menu_unavailable') %>
+  % }
+  <div class="navigation-filter" data-navigation-filter hidden data-no-results="<%= t('nav.menu_no_results') %>">
+    <label for="navigation-filter"><%= t('nav.menu_filter') %></label>
+    <input id="navigation-filter" type="search" autocomplete="off" aria-controls="navigation-groups">
+    <p role="status" data-navigation-status></p>
+  </div>
+  <div class="navigation-grid" id="navigation-groups">
+    % for my $group (@{$groups}) {
+      <details class="navigation-group" data-navigation-group>
+        <summary id="menu-<%= $group->{id} %>"><%= t($group->{label_key}) %> <span class="ui-meta">(<%= scalar @{$group->{links}} %>)</span></summary>
+        <nav aria-labelledby="menu-<%= $group->{id} %>">
+          <ul>
+            % for my $link (@{$group->{links}}) {
+              <li data-navigation-item><a href="<%= ui_path($link->{route}, %{$link->{parameters} // {}}) . (defined $link->{fragment} ? q{#} . $link->{fragment} : q{}) %>"><%= t($link->{label_key}) %></a></li>
+            % }
+          </ul>
+        </nav>
+      </details>
+    % }
+  </div>
+  % if (!session('user_id')) {
+    <p class="ui-row-links"><a href="<%= ui_path('login') %>"><%= t('auth.login') %></a> <a href="<%= ui_path('register') %>"><%= t('auth.register') %></a></p>
+  % }
+</section>

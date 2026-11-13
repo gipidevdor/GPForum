@@ -1,0 +1,291 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Service::Realtime::PgNotifier;
+
+use Mojo::Base -base, -signatures, -async_await;
+use v5.40;
+
+use GPForum::Infrastructure::Storage;
+use GPForum::Service::Realtime::EventEnvelope;
+
+use GPForum::Infrastructure::SqlFunction;
+
+our $VERSION = '0.001';
+has functions => \&GPForum::Infrastructure::SqlFunction::for_service;
+
+has channel => 'gpforum_domain_events';
+has event_contract =>
+  sub { return GPForum::Service::Realtime::EventEnvelope->new; };
+has schema => undef;    # optional: without one notify reports unavailable
+has stats  => sub {
+    return {
+        degraded        => 0,
+        notify_failures => 0,
+        notified        => 0,
+        rejected        => 0,
+    };
+};
+
+sub notify ( $self, $event ) {
+    my $serialized = $self->_serialized($event);
+    return $serialized->{refusal} if $serialized->{refusal};
+    my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
+    return $self->_unavailable if !$dbh;
+
+    try {
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_publish_notification',
+                { channel => $self->channel, payload => $serialized->{json} } );
+        }
+        else {
+            $dbh->do( 'SELECT pg_notify(?, ?)',
+                undef, $self->channel, $serialized->{json} );
+        }
+    }
+    catch ($error) {
+        return $self->_notify_failed;
+    };
+
+    return $self->_notified($serialized);
+}
+
+# The NOTIFY on the worker's pooled asynchronous connections: one
+# api.ops_publish_notification call. Without the function layer the
+# blocking path answers.
+async sub notify_p ( $self, $event, $context = undef ) {
+    return $self->notify($event) if !$self->functions;
+    my $serialized = $self->_serialized($event);
+    return $serialized->{refusal} if $serialized->{refusal};
+    try {
+        await $self->functions->row_p( 'ops_publish_notification',
+            { channel => $self->channel, payload => $serialized->{json} },
+            $context );
+    }
+    catch ($error) {
+        return $self->_notify_failed;
+    };
+
+    return $self->_notified($serialized);
+}
+
+sub _serialized ( $self, $event ) {
+    my $serialized = $self->event_contract->serialize($event);
+    return $serialized if $serialized->{ok};
+    $self->stats->{rejected} += 1;
+    return {
+        refusal => {
+            ok           => 0,
+            failure_type => 'serialization',
+            reason       => $serialized->{reason},
+        }
+    };
+}
+
+sub _unavailable ($self) {
+    $self->stats->{degraded} += 1;
+    return {
+        ok           => 0,
+        degraded     => 1,
+        failure_type => 'transport',
+        reason       => 'notify_unavailable',
+    };
+}
+
+sub _notify_failed ($self) {
+    $self->stats->{notify_failures} += 1;
+    return {
+        ok           => 0,
+        degraded     => 1,
+        failure_type => 'transport',
+        reason       => 'notify_failed',
+    };
+}
+
+sub _notified ( $self, $serialized ) {
+    $self->stats->{notified} += 1;
+
+    return {
+        ok      => 1,
+        channel => $self->channel,
+        bytes   => $serialized->{bytes},
+    };
+}
+
+# Several events on the channel in one statement: a fan-out's badges, which
+# went out one NOTIFY statement per recipient. An event the contract refuses
+# is counted and left out, and the others go; refused all, the answer is the
+# refusal, as it is for one. Answers as notify does, with sent, how many
+# went, and rejected, how many were refused.
+sub notify_many ( $self, $events ) {
+    my ( @payloads, $rejected, $bytes ) = ( (), 0, 0 );
+    for my $event ( @{$events} ) {
+        my $serialized = $self->event_contract->serialize($event);
+        if ( !$serialized->{ok} ) {
+            $rejected += 1;
+            $self->stats->{rejected} += 1;
+            next;
+        }
+        push @payloads, $serialized->{json};
+        $bytes += $serialized->{bytes};
+    }
+    if ( !@payloads ) {
+        return { ok => 1, channel => $self->channel, sent => 0, bytes => 0 }
+          if !$rejected;
+
+        return {
+            ok           => 0,
+            failure_type => 'serialization',
+            reason       => 'rejected',
+            rejected     => $rejected,
+        };
+    }
+    my $dbh = GPForum::Infrastructure::Storage->dbh_of( $self->schema );
+    if ( !$dbh ) {
+        $self->stats->{degraded} += 1;
+        return {
+            ok           => 0,
+            degraded     => 1,
+            failure_type => 'transport',
+            reason       => 'notify_unavailable',
+        };
+    }
+    try {
+        if ( $self->functions ) {
+            $self->functions->row( 'ops_publish_notifications',
+                { channel => $self->channel, payloads => \@payloads } );
+        }
+        else {
+            $dbh->do(
+'SELECT pg_notify(?, payload) FROM unnest(?::text[]) AS payload',
+                undef, $self->channel, \@payloads
+            );
+        }
+    }
+    catch ($error) {
+        $self->stats->{notify_failures} += 1;
+        return {
+            ok           => 0,
+            degraded     => 1,
+            failure_type => 'transport',
+            reason       => 'notify_failed',
+        };
+    };
+    $self->stats->{notified} += scalar @payloads;
+
+    return {
+        ok       => 1,
+        channel  => $self->channel,
+        bytes    => $bytes,
+        sent     => scalar @payloads,
+        rejected => $rejected,
+    };
+}
+
+sub snapshot ($self) {
+    return { %{ $self->stats }, channel => $self->channel };
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Service::Realtime::PgNotifier - Publishes a realtime event to the other nodes through PostgreSQL NOTIFY.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my $notifier = GPForum::Service::Realtime::PgNotifier->new(
+        schema => $schema,
+    );
+    my $result = $notifier->notify($event);
+    # { ok => 1, channel => 'gpforum_domain_events', bytes => ... }
+    my $stats = $notifier->snapshot;
+
+=head1 DESCRIPTION
+
+The sending half of the realtime fan-out between nodes; the receiving half
+is L<GPForum::Service::Realtime::PgListener>, which listens on the same
+C<channel> (C<gpforum_domain_events> by default). An event is first checked
+and serialized by the C<event_contract>, then sent with
+C<SELECT pg_notify(?, ?)> on the schema's database handle.
+
+A failure never dies: it is returned and counted in C<stats>, so that the
+caller (the outbox transport or the notification dispatcher) can carry on.
+An event the contract refuses is counted as C<rejected>; a missing handle
+as C<degraded>; a failed C<pg_notify> as C<notify_failures>; a sent event
+as C<notified>. The counters live in this object, so they are per process.
+
+The notification goes out on the schema's own handle, so when the caller
+is inside a transaction PostgreSQL delivers it at commit, and drops it on
+rollback.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 notify
+
+Takes an event hash reference. Returns C<< { ok => 1, channel, bytes } >>,
+C<bytes> being the payload size the contract measured. On failure returns
+C<ok> 0 with a C<failure_type> and a C<reason>: C<serialization> with the
+contract's reason (for example C<payload_too_large>) when the event is
+refused; C<transport> with C<< degraded => 1 >> and C<notify_unavailable>
+when there is no schema or asking it for a handle fails; C<transport> with
+C<< degraded => 1 >> and C<notify_failed> when the C<pg_notify> statement
+dies.
+
+=head2 notify_p
+
+L</notify> as a promise, with an optional query context last: the NOTIFY is
+sent on the worker's pooled asynchronous connections. Answers as L</notify>.
+
+=head2 notify_many
+
+Takes an array reference of event hash references and sends them on the
+channel in one statement (C<api.ops_publish_notifications>). Returns
+C<< { ok => 1, channel, bytes, sent, rejected } >>: C<sent> how many went,
+C<rejected> how many the contract refused and left out, each counted. With
+nothing to send it is C<ok> with C<sent> 0, unless every event was refused:
+then C<ok> 0 with C<failure_type> C<serialization>. Transport failures are
+answered as C<notify> answers them.
+
+=head2 snapshot
+
+Takes no arguments. Returns a copy of the counters C<degraded>,
+C<notify_failures>, C<notified> and C<rejected>, with the C<channel> name.
+
+=head1 DIAGNOSTICS
+
+None raised; see C<notify> for the failures it returns.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None read directly. The C<channel> attribute must match the listener's.
+
+=head1 DEPENDENCIES
+
+L<Mojo::Base>, L<GPForum::Infrastructure::Storage>,
+L<GPForum::Service::Realtime::EventEnvelope>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+None known.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

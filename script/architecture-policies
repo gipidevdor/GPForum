@@ -1,0 +1,106 @@
+#!/usr/bin/env perl
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+package main;
+use v5.40;
+use FindBin qw($Bin);
+use lib "$Bin/lib";
+use lib 'lib';
+use GPForum::Quality::AsyncSyntax;
+use Carp        qw(croak);
+use Digest::SHA qw(sha256_hex);
+use JSON::MaybeXS;
+use Mojo::File qw(path);
+use Perl::Critic;
+use PPI::Document;
+our $VERSION = '0.001';
+
+sub _observe_file ( $critic, $file, $inventory ) {
+
+    # Every policy requires one of these literal tokens. Avoid parsing the
+    # many value objects that cannot trigger one; PPI decides all matches.
+    my $file_source = $file->slurp;
+    return
+         if index( $file_source, 'resultset' ) < 0
+      && index( $file_source, 'DBIx::Class' ) < 0
+      && index( $file_source, 'GPForum::Schema' ) < 0
+      && $file_source !~ /\$(?:c|controller)\b/msx;
+    my $document;
+    for my $violation ( $critic->critique("$file") ) {
+        $document //= PPI::Document->new("$file");
+        my $location = $violation->location;
+        my $node     = $document->find_first(
+            sub {
+                $_[1]->isa('PPI::Token')
+                  && $_[1]->line_number == $location->[0]
+                  && $_[1]->column_number == $location->[1];
+            }
+        );
+        $node //= $document;
+        while ( $node->parent && !$node->isa('PPI::Statement::Sub') ) {
+            $node = $node->parent;
+        }
+        my $subroutine_source = $node->content;
+        $subroutine_source =~ s/\s+/ /gmsx;
+        my $key = join q{|}, $violation->policy, $file,
+          sha256_hex($subroutine_source);
+        $inventory->{$key}++;
+    }
+    return;
+}
+
+my $critic = Perl::Critic->new(
+    -profile => q{},
+    -only    => 1,
+    -include => [
+        qw(GPForum::ControllerPersistence GPForum::ServiceContext GPForum::ResultsetBoundary)
+    ]
+);
+my %observed;
+
+for my $file ( sort grep { /[.]pm\z/msx } @{ path('lib/GPForum')->list_tree } )
+{
+    _observe_file( $critic, $file, \%observed );
+}
+
+# One layout whichever JSON backend is installed, so the inventory's diff
+# shows only the keys that changed.
+my $json = JSON::MaybeXS->new( canonical => 1, pretty => 1 )->space_before(0);
+if ( @ARGV && $ARGV[0] eq '--inventory' ) {
+    print $json->encode( \%observed ) or croak 'cannot print inventory';
+    exit 0;
+}
+my $baseline =
+  $json->decode( path('etc/architecture-policy-baseline.json')->slurp );
+
+# The inventory is a ratchet both ways. A violation it does not hold is new;
+# one it holds that is no longer seen was fixed, or its sub was edited and so
+# re-hashed, and its key has to go. Either way the inventory is regenerated
+# with --inventory once the change is reviewed, so it only ever shrinks.
+my @new = grep { $observed{$_} > ( $baseline->{$_} // 0 ) } sort keys %observed;
+my @gone =
+  grep { ( $observed{$_} // 0 ) < $baseline->{$_} } sort keys %{$baseline};
+my @problems = (
+    (
+        @new
+        ? 'architecture policy violations outside the reviewed legacy'
+          . " inventory:\n"
+          . join( "\n", @new )
+        : ()
+    ),
+    (
+        @gone
+        ? 'inventory entries no longer observed (regenerate it with'
+          . " --inventory):\n"
+          . join( "\n", @gone )
+        : ()
+    ),
+);
+if (@problems) {
+    print {*STDERR} join( "\n\n", @problems ), "\n"
+      or croak 'cannot print the problems';
+    exit 1;
+}
+print "architecture policies: no new violations, none fixed and left listed\n"
+  or croak 'cannot print result';
+exit 0;

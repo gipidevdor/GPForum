@@ -1,0 +1,20 @@
+% layout 'default';
+% title t('auth.oidc_settings') . ' - ' . t('app.name');
+<section class="account-panel" aria-labelledby="openid-heading">
+  <h1 id="openid-heading"><%= t('auth.oidc_settings') %></h1>
+  <p><%= t('auth.oidc_policy') %></p>
+  % if (!$enabled) {
+    <p><%= t('auth.oidc_disabled') %></p>
+  % } else {
+    <p><%= $linked ? t('auth.oidc_linked') : t('auth.oidc_not_linked') %></p>
+    <form method="post" action="<%= $linked ? ui_path('settings_openid_unlink') : ui_path('settings_openid_link') %>">
+      <%= csrf_field %>
+      <label for="openid-password"><%= t('auth.oidc_password') %></label>
+      <input id="openid-password" name="password" type="password" autocomplete="current-password" required>
+      <label for="openid-code"><%= t('auth.oidc_code') %></label>
+      <input id="openid-code" name="code" autocomplete="one-time-code">
+      <button type="submit"><%= $linked ? t('auth.oidc_unlink') : t('auth.oidc_link') %></button>
+    </form>
+  % }
+  <p><a href="<%= ui_path('settings_security') %>"><%= t('auth.oidc_back') %></a></p>
+</section>

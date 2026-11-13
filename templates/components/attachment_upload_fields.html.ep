@@ -1,0 +1,6 @@
+<label for="<%= $dom_id %>-attachment"><%= t('form.attach_file') %></label>
+<input id="<%= $dom_id %>-attachment" name="attachment" type="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,video/mp4,audio/mpeg,audio/mp4,audio/ogg,audio/wav" required>
+<p class="ui-meta"><%= t('media.upload_hint', { limit => $media_max_mib }) %></p>
+<p class="ui-meta"><%= t('media.podcast_hint') %></p>
+<%= include 'components/attachment_source', source_id => $dom_id %>
+<button type="submit" class="button--secondary"><%= ui_icon('upload') %><%= t('form.upload_attachment') %></button>

@@ -1,0 +1,14 @@
+% layout 'default';
+% title t('messages.new') . ' - ' . t('app.name');
+<section class="editor-panel" aria-labelledby="recipient-heading">
+  <%= include 'components/page_header', heading_id => 'recipient-heading', component_title => t('messages.new'), description => t('messages.choose_recipient') %>
+  % if ($error) {
+    <%= include 'components/alert', tone => 'error', message => $error %>
+  % }
+  <form method="get" action="<%= ui_path('message_new') %>">
+    <label for="message-recipient"><%= t('auth.username') %></label>
+    <input id="message-recipient" name="username" value="<%= $username %>" maxlength="100" required autocomplete="off" autocapitalize="none" spellcheck="false">
+    <button type="submit"><%= ui_icon('message') %><%= t('messages.continue') %></button>
+  </form>
+  <p><a href="<%= ui_path('messages') %>"><%= t('messages.inbox') %></a></p>
+</section>

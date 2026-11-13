@@ -1,0 +1,368 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Infrastructure::UniqueConflict;
+
+use Carp qw(croak);
+use Const::Fast;
+use Mojo::Base -base, -signatures, -async_await;
+use v5.40;
+
+use List::Util qw(any);
+
+use GPForum::Infrastructure::Storage;
+use GPForum::Infrastructure::Text qw(has_text);
+use GPForum::X::Conflict;
+
+our $VERSION = '0.001';
+
+const my $PG_UNIQUE => '23505';
+
+sub is_conflict ( $, $error ) {
+    if ( !has_text($error) ) {
+        return 0;
+    }
+
+    return GPForum::X::Conflict->reports_unique($error);
+}
+
+# A unique violation of this constraint and no other, partitions included:
+# GPForum::X::Conflict->on, for an error that may not be an exception yet.
+sub is_conflict_on ( $, $schema, $error, $constraint ) {
+    if ( !has_text($error) || !has_text($constraint) ) {
+        return 0;
+    }
+
+    return GPForum::X::Conflict->new( message => "$error", schema => $schema )
+      ->on($constraint);
+}
+
+sub throw ( $, $constraint ) {
+    my ( undef, $file, $line ) = caller;
+    croak GPForum::X::Conflict->new(
+        message    => _message($constraint),
+        constraint => has_text($constraint) ? $constraint : undef,
+        location   => "$file line $line",
+    );
+}
+
+sub rethrow ( $, $error ) {
+    croak $error;
+}
+
+sub attempt ( $, $schema, $code ) {
+    my $storage   = _savepoint_storage($schema);
+    my $savepoint = _begin_savepoint($storage);
+
+    my ( $value, $error );
+    try {
+        $value = $code->();
+    }
+    catch ($caught) {
+        $error = $caught;
+    };
+    _finish_savepoint( $storage, $savepoint, $error );
+
+    # A unique violation comes back as a GPForum::X::Conflict that stringifies
+    # to the original text, so the stores matching that text keep working and
+    # a caller can ask $error->on($constraint). Any other error, and no error,
+    # comes back as it was.
+    return ( $value,
+        GPForum::X::Conflict->from_error( $error, $schema ) // $error );
+}
+
+# attempt inside a pooled asynchronous transaction: the code takes the call
+# layer and runs in a savepoint of its transaction (transaction_p nests
+# one), so a conflict undoes only the code's own writes. Answers a promise
+# of the value and the error, as attempt answers them.
+async sub attempt_p ( $, $functions, $code ) {
+    my ( $value, $error );
+    try { $value = await $functions->transaction_p($code); }
+    catch ($caught) { $error = $caught; };
+
+    return ( $value, GPForum::X::Conflict->caught($error) // $error );
+}
+
+# The unique conflict an attempt ended in; any other error is rethrown.
+sub conflict_of ( $class, $error ) {
+    my $conflict = GPForum::X::Conflict->caught($error);
+    if ( !$conflict ) {
+        $class->rethrow($error);
+    }
+
+    return $conflict;
+}
+
+# A write tried once more in a savepoint after an id was given up: what it
+# returned, or, on a second conflict, that error rethrown.
+sub once_more ( $class, $schema, $code ) {
+    my ( $done, $error ) = $class->attempt( $schema, $code );
+    return $done if !$error;
+
+    $class->rethrow($error);
+}
+
+async sub once_more_p ( $class, $functions, $code ) {
+    my ( $done, $error ) = await $class->attempt_p( $functions, $code );
+    return $done if !$error;
+
+    return $class->rethrow($error);
+}
+
+# A row created once per key: an existing row is reused, whether it was
+# there before or a concurrent write won the key; a minted id already
+# stored with no such row is minted once more. Steps: find (the row by its
+# key, or undef), reuse (what to answer for it), create, key_constraint
+# (one name or a list) and, optionally, id_constraint (no retry without it)
+# and key_taken (the answer when the key is held by a row find cannot see).
+sub create_or_reuse ( $class, $schema, %step ) {
+    my $existing = $step{find}->();
+    return $step{reuse}->($existing) if $existing;
+
+    my ( $created, $error ) = $class->attempt( $schema, $step{create} );
+    return $created if !$error;
+
+    my $conflict = GPForum::X::Conflict->caught($error);
+    my $id_taken = _on_any( $conflict, $step{id_constraint} );
+    if ( $id_taken || _on_any( $conflict, $step{key_constraint} ) ) {
+        $existing = $step{find}->();
+        return $step{reuse}->($existing) if $existing;
+        return $step{key_taken}->()      if !$id_taken && $step{key_taken};
+    }
+    return $class->once_more( $schema, $step{create} ) if $id_taken;
+
+    return $class->rethrow($error);
+}
+
+# True when the conflict names one of the constraints (a name or a list).
+sub _on_any ( $conflict, $names ) {
+    return 0 if !$conflict || !$names;
+    my @names = ref $names ? @{$names} : $names;
+    return any { $conflict->on($_) } @names;
+}
+
+# DBIx::Class mints the name so that nesting works. A fixed name does not:
+# svp_rollback deliberately leaves the named savepoint on the storage stack
+# ("a rollback doesn't remove the named savepoint, only everything after it"),
+# so with one shared name a later svp_release matches an inner leftover rather
+# than its own savepoint and the stack stays skewed for the whole transaction.
+sub _begin_savepoint ($storage) {
+    if ( !$storage ) {
+        return undef;
+    }
+
+    $storage->svp_begin;
+
+    return $storage->savepoints->[-1];
+}
+
+sub _finish_savepoint ( $storage, $savepoint, $error ) {
+    if ( !$storage || !defined $savepoint ) {
+        return;
+    }
+
+    if ($error) {
+        _quietly( $storage, 'svp_rollback', $savepoint );
+    }
+
+    # PostgreSQL keeps a rolled-back savepoint established, and DBIx::Class
+    # keeps it on its stack, so the release is required on both paths. Without
+    # it every conflict leaks a subtransaction for the rest of the enclosing
+    # transaction.
+    _quietly( $storage, 'svp_release', $savepoint );
+
+    return;
+}
+
+# A savepoint teardown must never replace the caller's error with its own: if
+# the connection is already gone the original conflict is the useful one.
+sub _quietly ( $storage, $method, $savepoint ) {
+    my $done = 0;
+    try {
+        $storage->$method($savepoint);
+        $done = 1;
+    }
+    catch ($error) {
+        $done = 0;
+    };
+
+    return $done;
+}
+
+# A savepoint only inside a transaction: outside one there is nothing for a
+# conflict to abort, and a schema without storage -- a test double -- has no
+# savepoints to take.
+sub _savepoint_storage ($schema) {
+    my $storage = GPForum::Infrastructure::Storage->storage_of($schema);
+    if ( !blessed $storage || !$storage->can('svp_begin') ) {
+        return undef;
+    }
+
+    # The handle as it stands, without the ping storage->dbh pays for on
+    # every call: a savepoint only inside a transaction.
+    my $in_transaction = GPForum::Infrastructure::Storage->with_handle(
+        $schema,
+        sub ( $, $dbh ) {
+            return $dbh && !$dbh->{AutoCommit} ? 1 : 0;
+        }
+    );
+    if ( !$in_transaction ) {
+        return undef;
+    }
+
+    return $storage;
+}
+
+sub _message ($constraint) {
+    my $name = $constraint;
+    if ( !has_text($name) ) {
+        $name = 'unknown';
+    }
+
+    return
+      "duplicate key value violates unique constraint \"$name\" ($PG_UNIQUE)";
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Infrastructure::UniqueConflict - Detect PostgreSQL unique races.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    my ( $row, $error ) = GPForum::Infrastructure::UniqueConflict->attempt(
+        $schema,
+        sub { return $rs->create($row) },
+    );
+    if ( GPForum::Infrastructure::UniqueConflict->is_conflict($error) ) {
+        return $existing;
+    }
+
+=head1 DESCRIPTION
+
+Recognizes PostgreSQL C<23505> unique violations and the equivalent fake-store
+messages used in tests. Stores catch the conflict and reload the winning row
+instead of returning a 500.
+
+C<is_conflict_on> narrows that to one constraint. On a partitioned table
+PostgreSQL names the partition's index in the conflict, not the table's
+constraint, so the partitions' index names are read from the catalog
+(C<pg_inherits>) when the error does not name the constraint itself. The
+rules live in L<GPForum::X::Conflict>, which C<attempt> returns for a unique
+violation.
+
+C<attempt> wraps an insert attempt in a PostgreSQL savepoint when the schema is
+inside an open transaction, so a unique violation does not abort the outer
+C<txn_do>. Outside a transaction, or on a fake schema without a live DBI
+handle, the code runs without one.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 is_conflict
+
+True when the error text is a unique constraint violation.
+
+=head2 is_conflict_on
+
+Takes the schema, the error and a constraint name. True when the error is a
+unique violation of that constraint: the server's message (not its DETAIL,
+the statement or its parameter values) reports a unique violation and names
+the constraint itself or, on PostgreSQL, the index of one of its table's
+partitions. Call it after C<attempt>, whose savepoint leaves the transaction
+able to run the catalog lookup; a lookup that fails, or a schema with no
+PostgreSQL handle, leaves only the constraint's own name to match.
+
+=head2 attempt
+
+Runs a code reference and returns C<($value, $error)>. On a live PostgreSQL
+transaction, the attempt is guarded by a savepoint. A unique violation comes
+back as a L<GPForum::X::Conflict> that stringifies to the original error text
+and carries the schema, so C<< $error->on($constraint) >> can ask about
+partitions; any other error comes back unchanged, and C<$error> is undef when
+the code did not die.
+
+=head2 attempt_p
+
+Takes a call layer inside an asynchronous transaction (the scope
+L<GPForum::Infrastructure::SqlFunction/transaction_p> hands its work) and a
+code reference that takes it and answers a promise. Runs the code in a
+savepoint and answers a promise of C<($value, $error)>, as L</attempt>
+returns them.
+
+=head2 conflict_of
+
+Takes the error an L</attempt> ended in and returns it as the
+L<GPForum::X::Conflict> it is; any other error is rethrown.
+
+=head2 once_more
+
+Takes a schema and a code reference and runs it in a savepoint as
+L</attempt> does, for a write retried after a conflict: returns what it
+returned, or rethrows a second conflict.
+
+=head2 once_more_p
+
+The same through L</attempt_p>, inside a pooled asynchronous transaction.
+
+=head2 create_or_reuse
+
+Takes the schema and the steps C<find>, C<reuse>, C<create>,
+C<key_constraint> (a name or an array reference of names) and optionally
+C<id_constraint> and C<key_taken>. Answers
+C<reuse> of the row C<find> returns, before creating or after a conflict on
+any of the constraints; otherwise the row C<create> returns, minted once
+more after an id conflict. A key conflict with no row to reuse answers
+C<key_taken> when given; every other error is rethrown.
+
+=head2 throw
+
+Raises a L<GPForum::X::Conflict> for test fakes, whose text is a
+PostgreSQL-shaped unique violation naming the constraint.
+
+=head2 rethrow
+
+Propagates a non-unique error with croak.
+
+=head1 DIAGNOSTICS
+
+C<throw> croaks a L<GPForum::X::Conflict> whose message is a PostgreSQL-shaped
+unique violation string.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+Uses L<Carp>, L<Const::Fast>, L<Mojo::Base>,
+L<GPForum::Infrastructure::Storage> for the savepoint probe and
+L<GPForum::X::Conflict>, which holds the matching rules.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+Detection is string-based so non-PostgreSQL drivers must raise a matching
+error text. Savepoints are used only when C<AutoCommit> is false.
+C<is_conflict_on> costs one catalog query when the error names an index other
+than the constraint itself.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

@@ -1,0 +1,30 @@
+{
+   "note" : "Bounded functional operation counts, not latency or throughput measurements.",
+   "observations" : [
+      {
+         "held_characters" : 102234,
+         "phase" : "fill_2048",
+         "subprocesses" : 1
+      },
+      {
+         "held_characters" : 102234,
+         "phase" : "repeat_2048",
+         "subprocesses" : 0
+      },
+      {
+         "held_characters" : 47,
+         "phase" : "one_new_source",
+         "subprocesses" : 1
+      },
+      {
+         "held_characters" : 51,
+         "phase" : "repeat_original_2048",
+         "subprocesses" : 1
+      },
+      {
+         "bytes" : 1048576,
+         "phase" : "file_1MiB_metadata_and_data",
+         "subprocesses" : 5
+      }
+   ]
+}

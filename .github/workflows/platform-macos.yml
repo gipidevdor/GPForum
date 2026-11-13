@@ -1,0 +1,136 @@
+name: macOS target
+
+# macOS is the supported developer host, not a deployment platform (README
+# names Debian and FreeBSD for deployment). The contract job proves the
+# Homebrew system-Perl policy and the launchd units on every run; the full gate
+# builds the locked tree and runs the suite and a native launchd lifecycle drill.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/GPForum/OS/**'
+      - 'lib/GPForum/OS.pm'
+      - 'deploy/launchd/**'
+      - 'lib/GPForum/CLI/start.pm'
+      - 'lib/GPForum/Log.pm'
+      - 'lib/GPForum/Log/**'
+      - 't/865-unix-service-manager.t'
+      - 't/866-native-unix-supervisor.t'
+      - 't/fixtures/unix-service.pl'
+      - 'script/gpforum-system-perl'
+      - 'script/gpforum-homebrew-env'
+      - 'script/gpforum-carton'
+      - 'script/gpforum-cpm'
+      - 'script/bootstrap-deps'
+      - '.github/parameters/Brewfile'
+      - '.github/workflows/platform-macos.yml'
+  schedule:
+    - cron: '53 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_INSTALL_CLEANUP: '1'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  contract:
+    name: Homebrew developer-host contract
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Homebrew formulae
+        run: brew bundle --file=.github/parameters/Brewfile
+
+      - name: Verify Homebrew system Perl is selected over Apple Perl
+        run: |
+          set -euo pipefail
+          runtime_prefix="$(brew --prefix perl)"
+          export GPFORUM_PERL="$runtime_prefix/bin/perl"
+          printf 'GPFORUM_PERL=%s\n' "$GPFORUM_PERL" >> "$GITHUB_ENV"
+          script/gpforum-system-perl --preflight
+          resolved="$(script/gpforum-system-perl --require)"
+          case "$resolved" in
+            "$(brew --prefix)"/*)
+              echo "ok: system Perl -> $resolved"
+              ;;
+            *)
+              echo "system Perl resolved outside Homebrew: $resolved" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify Homebrew PostgreSQL client helper
+        run: script/gpforum-homebrew-env --check
+
+      - name: Lint launchd units
+        run: |
+          set -euo pipefail
+          for plist in deploy/launchd/*.plist; do
+            plutil -lint "$plist"
+          done
+
+  full-gate:
+    name: Homebrew locked tree and suite
+    runs-on: macos-latest
+    timeout-minutes: 180
+    # Changes to the service contract exercise real launchd supervision too.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Homebrew formulae
+        run: brew bundle --file=.github/parameters/Brewfile
+
+      - name: Put Homebrew Perl tooling on PATH
+        run: |
+          set -euo pipefail
+          perl_bin="$(script/gpforum-system-perl --require)"
+          printf '%s\n' "$(dirname "$perl_bin")" >> "$GITHUB_PATH"
+          printf 'GPFORUM_PERL=%s\n' "$perl_bin" >> "$GITHUB_ENV"
+          script/gpforum-homebrew-env --print-path >> "$GITHUB_PATH"
+
+      - name: Bootstrap cpm and Carton for the Homebrew Perl
+        run: |
+          set -euo pipefail
+          "$GPFORUM_PERL" "$(brew --prefix cpanminus)/bin/cpanm" \
+            -M https://cpan.metacpan.org/ --notest App::cpm Carton
+
+      - name: Install locked CPAN distributions
+        run: script/bootstrap-deps --postgres
+        env:
+          PERL_CARTON_MIRROR: https://cpan.metacpan.org/
+
+      - name: Verify dependency lock
+        run: script/gpforum-carton check
+
+      - name: Check Perl syntax
+        run: script/gpforum-carton exec script/perl-syntax-check
+
+      - name: Exercise native launchd crash and graceful stop
+        env:
+          GPFORUM_REQUIRE_NATIVE_SUPERVISOR: '1'
+        run: script/gpforum-carton exec prove -lv t/866-native-unix-supervisor.t
+
+      - name: Run OS preflight
+        run: bin/gpforum os-preflight --json
+
+      - name: Run tests
+        run: script/gpforum-carton exec prove -lr -j 2 t

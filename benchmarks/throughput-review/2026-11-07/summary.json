@@ -1,0 +1,352 @@
+{
+  "baseline": "756374d9720764e4dfc468e45df3c8fb3d469961",
+  "campaigns": {
+    "canonical_thread": [
+      {
+        "after": {
+          "clients": 100,
+          "p50_ms": 232.168000016827,
+          "p95_ms": 293.317000003299,
+          "repetitions": 3,
+          "requests": 8094,
+          "rps": 438.399414352138,
+          "rss_mib": 883.921875,
+          "runs": [
+            {
+              "p95_ms": 286.584999994375,
+              "requests": 2627,
+              "rps": 423.674416773546,
+              "rss_bytes": 915456000
+            },
+            {
+              "p95_ms": 293.317000003299,
+              "requests": 2726,
+              "rps": 438.399414352138,
+              "rss_bytes": 937361408
+            },
+            {
+              "p95_ms": 300.336999993306,
+              "requests": 2741,
+              "rps": 441.257743945074,
+              "rss_bytes": 926859264
+            }
+          ]
+        },
+        "before": {
+          "clients": 100,
+          "p50_ms": 231.846000009682,
+          "p95_ms": 293.295999988914,
+          "repetitions": 3,
+          "requests": 7955,
+          "rps": 425.548981540549,
+          "rss_mib": 874.046875,
+          "runs": [
+            {
+              "p95_ms": 293.118999979924,
+              "requests": 2642,
+              "rps": 425.548981540549,
+              "rss_bytes": 901365760
+            },
+            {
+              "p95_ms": 298.340999986976,
+              "requests": 2676,
+              "rps": 430.349757275781,
+              "rss_bytes": 916504576
+            },
+            {
+              "p95_ms": 293.295999988914,
+              "requests": 2637,
+              "rps": 423.874706688885,
+              "rss_bytes": 932429824
+            }
+          ]
+        },
+        "p95_change_pct": 0.007160007086959297,
+        "rps_change_pct": 3.0197305995348867,
+        "rss_change_pct": 1.1298021058653074,
+        "scenario": "member.thread"
+      }
+    ],
+    "selected_scenario_sequence": [
+      {
+        "after": {
+          "clients": 100,
+          "p50_ms": 230.884999997215,
+          "p95_ms": 303.713000001153,
+          "repetitions": 3,
+          "requests": 7658,
+          "rps": 426.59056475796,
+          "rss_mib": 774.71875,
+          "runs": [
+            {
+              "p95_ms": 365.028999978676,
+              "requests": 2310,
+              "rps": 371.489484676575,
+              "rss_bytes": 790953984
+            },
+            {
+              "p95_ms": 300.891999999294,
+              "requests": 2647,
+              "rps": 426.59056475796,
+              "rss_bytes": 812351488
+            },
+            {
+              "p95_ms": 303.713000001153,
+              "requests": 2701,
+              "rps": 431.002568462085,
+              "rss_bytes": 834600960
+            }
+          ]
+        },
+        "before": {
+          "clients": 100,
+          "p50_ms": 293.922999990173,
+          "p95_ms": 428.995999973267,
+          "repetitions": 3,
+          "requests": 6162,
+          "rps": 316.978837698292,
+          "rss_mib": 709.859375,
+          "runs": [
+            {
+              "p95_ms": 428.995999973267,
+              "requests": 1979,
+              "rps": 316.978837698292,
+              "rss_bytes": 729235456
+            },
+            {
+              "p95_ms": 368.893999984721,
+              "requests": 2268,
+              "rps": 363.712115125598,
+              "rss_bytes": 744341504
+            },
+            {
+              "p95_ms": 563.747999985935,
+              "requests": 1915,
+              "rps": 307.919496498124,
+              "rss_bytes": 756547584
+            }
+          ]
+        },
+        "p95_change_pct": -29.20376879502864,
+        "rps_change_pct": 34.580140382746634,
+        "rss_change_pct": 9.13693293125839,
+        "scenario": "member.thread"
+      },
+      {
+        "after": {
+          "clients": 1,
+          "p50_ms": 2.77799999457784,
+          "p95_ms": 3.20300000021234,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 337.074864348351,
+          "rss_mib": 746.375,
+          "runs": [
+            {
+              "p95_ms": 3.28500001342036,
+              "requests": 100,
+              "rps": 337.074864348351,
+              "rss_bytes": 779157504
+            },
+            {
+              "p95_ms": 3.01499999477528,
+              "requests": 100,
+              "rps": 327.581010787797,
+              "rss_bytes": 782630912
+            },
+            {
+              "p95_ms": 3.20300000021234,
+              "requests": 100,
+              "rps": 338.151999319596,
+              "rss_bytes": 782991360
+            }
+          ]
+        },
+        "before": {
+          "clients": 1,
+          "p50_ms": 6.93599999067374,
+          "p95_ms": 9.82800000929274,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 130.880972913238,
+          "rss_mib": 734.28125,
+          "runs": [
+            {
+              "p95_ms": 10.2919999917503,
+              "requests": 100,
+              "rps": 130.880972913238,
+              "rss_bytes": 767049728
+            },
+            {
+              "p95_ms": 9.58099999115802,
+              "requests": 100,
+              "rps": 129.623508519843,
+              "rss_bytes": 769949696
+            },
+            {
+              "p95_ms": 9.82800000929274,
+              "requests": 100,
+              "rps": 136.259274149999,
+              "rss_bytes": 772882432
+            }
+          ]
+        },
+        "p95_change_pct": -67.40944243809743,
+        "rps_change_pct": 157.54306133696033,
+        "rss_change_pct": 1.6470187683534032,
+        "scenario": "guest.home"
+      },
+      {
+        "after": {
+          "clients": 1,
+          "p50_ms": 3.01299997954629,
+          "p95_ms": 3.52199998451397,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 262.096404303195,
+          "rss_mib": 775.34375,
+          "runs": [
+            {
+              "p95_ms": 3.52199998451397,
+              "requests": 100,
+              "rps": 260.195094276931,
+              "rss_bytes": 802226176
+            },
+            {
+              "p95_ms": 3.28200001968071,
+              "requests": 100,
+              "rps": 262.096404303195,
+              "rss_bytes": 813006848
+            },
+            {
+              "p95_ms": 3.63299998571165,
+              "requests": 100,
+              "rps": 305.475028954897,
+              "rss_bytes": 813367296
+            }
+          ]
+        },
+        "before": {
+          "clients": 1,
+          "p50_ms": 3.19099999614991,
+          "p95_ms": 4.5430000172928,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 246.570816366736,
+          "rss_mib": 763.5,
+          "runs": [
+            {
+              "p95_ms": 4.5430000172928,
+              "requests": 100,
+              "rps": 246.570816366736,
+              "rss_bytes": 791281664
+            },
+            {
+              "p95_ms": 5.1380000077188,
+              "requests": 100,
+              "rps": 245.547607990661,
+              "rss_bytes": 800587776
+            },
+            {
+              "p95_ms": 3.83400000282563,
+              "requests": 100,
+              "rps": 256.674828920399,
+              "rss_bytes": 811630592
+            }
+          ]
+        },
+        "p95_change_pct": -22.474136669434795,
+        "rps_change_pct": 6.296604020391072,
+        "rss_change_pct": 1.5512442698100815,
+        "scenario": "guest.thread"
+      },
+      {
+        "after": {
+          "clients": 1,
+          "p50_ms": 7.54299998516217,
+          "p95_ms": 8.75999999698251,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 127.908151710724,
+          "rss_mib": 780.1875,
+          "runs": [
+            {
+              "p95_ms": 9.34300001244992,
+              "requests": 100,
+              "rps": 124.228232108428,
+              "rss_bytes": 817397760
+            },
+            {
+              "p95_ms": 8.75999999698251,
+              "requests": 100,
+              "rps": 127.908151710724,
+              "rss_bytes": 818085888
+            },
+            {
+              "p95_ms": 7.75499999872409,
+              "requests": 100,
+              "rps": 134.042148211162,
+              "rss_bytes": 822018048
+            }
+          ]
+        },
+        "before": {
+          "clients": 1,
+          "p50_ms": 12.5579999876209,
+          "p95_ms": 16.3170000014361,
+          "repetitions": 3,
+          "requests": 300,
+          "rps": 74.7380245403813,
+          "rss_mib": 779.375,
+          "runs": [
+            {
+              "p95_ms": 13.8810000207741,
+              "requests": 100,
+              "rps": 77.9179088079396,
+              "rss_bytes": 815628288
+            },
+            {
+              "p95_ms": 16.3170000014361,
+              "requests": 100,
+              "rps": 74.7380245403813,
+              "rss_bytes": 817233920
+            },
+            {
+              "p95_ms": 25.0429999723565,
+              "requests": 100,
+              "rps": 58.1451803747294,
+              "rss_bytes": 817250304
+            }
+          ]
+        },
+        "p95_change_pct": -46.31366062259288,
+        "rps_change_pct": 71.14200234395362,
+        "rss_change_pct": 0.10425020048114853,
+        "scenario": "guest.search"
+      }
+    ]
+  },
+  "candidate": "2ade1f06b4ea65a591161551c00f9d6abca7b71b",
+  "correctness": {
+    "contaminated_runs_included": 0,
+    "errors": 0,
+    "measured_responses": 32869,
+    "rejected_runs": 1,
+    "rejection_reason": "Initial run overlapped a 6-second performance-evidence test; excluded completely and retained only in local temporary diagnostics."
+  },
+  "created_utc": "2026-11-07T09:29:20.579930+00:00",
+  "excluded": [
+    "B06: GlifiStore/shared-cache changes"
+  ],
+  "method": {
+    "clients_per_worker": 16,
+    "guest_capacity_measured": false,
+    "guest_clients": 1,
+    "instrumentation": false,
+    "member_sessions": 100,
+    "repetitions": 3,
+    "resource_limit": "RSS is the sum for manager and immediate workers at cell end, not peak or unique memory; excludes PostgreSQL/generator. macOS CPU is an indicative ps lifetime average.",
+    "statistics": "medians of repetition statistics, not pooled percentiles",
+    "workers": 8
+  }
+}

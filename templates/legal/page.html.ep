@@ -1,0 +1,70 @@
+% layout 'default';
+% title t($title_key) . ' - ' . t('app.name');
+%# A legal page in the order the text it follows sets out (basis_key names
+%# it): its sections listed first, then each with its facts, links and, on
+%# the cookie notice, the cookies.
+<article class="legal" aria-labelledby="<%= $heading_id %>">
+  <%= include 'components/page_header',
+    heading_id => $heading_id,
+    component_title => t($title_key) %>
+  <div class="prose">
+    <p class="ui-meta"><%= t($basis_key) %></p>
+    % if ($incomplete) {
+      <p class="ui-alert" role="note"><%= t('legal.incomplete') %></p>
+    % }
+    <nav aria-label="<%= t('legal.contents') %>">
+      <ol>
+        % for my $section (@{ $sections }) {
+          <li><a href="#<%= $section->{id} %>"><%= t($section->{title_key}) %></a></li>
+        % }
+      </ol>
+    </nav>
+    % for my $section (@{ $sections }) {
+      <section aria-labelledby="<%= $section->{id} %>">
+        <h2 id="<%= $section->{id} %>"><%= t($section->{title_key}) %></h2>
+        % for my $text_key (@{ $section->{text_keys} }) {
+          <p><%= t($text_key) %></p>
+        % }
+        % if (@{ $section->{facts} }) {
+          <dl>
+            % for my $fact (@{ $section->{facts} }) {
+              <dt><%= t($fact->{label_key}) %></dt>
+              % if (!defined $fact->{value}) {
+                <dd class="ui-meta"><%= t('legal.not_provided') %></dd>
+              % } elsif ($fact->{href}) {
+                <dd><a href="<%= $fact->{href} %>"><%= $fact->{value} %></a></dd>
+              % } else {
+                <dd><%= $fact->{value} %></dd>
+              % }
+            % }
+          </dl>
+        % }
+        % if ($section->{cookies}) {
+          <div class="ui-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col"><%= t('legal.cookies.column.name') %></th>
+                  <th scope="col"><%= t('legal.cookies.column.purpose') %></th>
+                  <th scope="col"><%= t('legal.cookies.column.duration') %></th>
+                </tr>
+              </thead>
+              <tbody>
+                % for my $cookie (@{ $section->{cookies} }) {
+                  <tr>
+                    <th scope="row"><code><%= $cookie->{name} %></code></th>
+                    <td><%= t($cookie->{purpose_key}) %></td>
+                    <td><%= t($cookie->{duration_key}, $cookie->{duration}) %></td>
+                  </tr>
+                % }
+              </tbody>
+            </table>
+          </div>
+        % }
+        % for my $link (@{ $section->{links} }) {
+          <p><a href="<%= ui_path($link->{route}) %>"><%= t($link->{label_key}) %></a></p>
+        % }
+      </section>
+    % }
+  </div>
+</article>

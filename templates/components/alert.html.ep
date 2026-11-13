@@ -1,0 +1,5 @@
+% my $tone = stash('tone') || 'notice';
+% my $role = $tone eq 'error' ? 'alert' : 'status';
+% my $message = stash('message') || q{};
+
+<p class="ui-alert ui-alert--<%= $tone %>" role="<%= $role %>"><%= ui_icon($tone eq 'error' || $tone eq 'warning' ? 'warning' : $tone eq 'success' ? 'check' : 'discussion') %><%= $message %></p>

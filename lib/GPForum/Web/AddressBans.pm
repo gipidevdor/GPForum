@@ -1,0 +1,171 @@
+# SPDX-FileCopyrightText: 2026 GPForum Contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+package GPForum::Web::AddressBans;
+
+use Const::Fast;
+use Mojo::Base -base, -async_await;
+use v5.40;
+
+use GPForum::Web::Guard;
+use GPForum::Web::SecurityEvent;
+
+our $VERSION = '0.001';
+
+const my $HTTP_FORBIDDEN => 403;
+
+# ADR 0146: what each scope refuses. A registration ban refuses creating an
+# account; a sign-in ban that and every way into one; a writes ban every
+# request that is not a read.
+const my %SAFE_METHOD  => map { $_ => 1 } qw(GET HEAD OPTIONS);
+const my %REGISTRATION => ( register_submit => 1 );
+const my %SIGN_IN => map { $_ => 1 } qw(
+  register_submit
+  login_submit
+  login_second_factor_submit
+  password_reset_request_submit
+  password_reset_complete
+);
+
+# What no ban refuses: signing out, the language and the theme of the page
+# that says so, a mail's one-click unsubscribe (RFC 8058), a member's
+# privacy rights (ADR 0074), and the console's own ban forms, so that staff
+# a ban covers can still lift it.
+const my %ALWAYS_OPEN => map { $_ => 1 } qw(
+  logout
+  locale_update
+  theme_update
+  unsubscribe_confirm
+  privacy_export_request
+  privacy_deletion_request
+  admin_address_ban_create
+  admin_address_ban_update
+  admin_address_ban_lift
+);
+
+sub requires_lookup ( $self, $controller ) {
+    return 0 if exists $SAFE_METHOD{ $controller->req->method };
+    return 0 if exists $ALWAYS_OPEN{ $controller->current_route // q{} };
+    return 1;
+}
+
+# True when the request may go on; false once the refusal is rendered. A
+# read never asks; a write asks which live ban covers its client, the
+# address Web::ClientAddress found for it. When the lookup fails the
+# request goes on, logged: a database that cannot answer it cannot take
+# the write either.
+async sub admits_p ( $self, $controller, $client ) {
+    return 1 if !$self->requires_lookup($controller);
+    my $route = $controller->current_route // q{};
+    my $ban;
+    try {
+        my $service = $controller->gp_address_bans;
+        $ban =
+          $controller->can('call_p')
+          ? await $controller->call_p( $service, 'covering', $client )
+          : $service->can('covering_p') ? await $service->covering_p($client)
+          :                               $service->covering($client);
+    }
+    catch ($error) {
+        $controller->app->log->warn("address ban lookup failed: $error");
+        return 1;
+    };
+    return 1 if !$ban || !$self->refuses( $ban->{scope}, $route );
+
+    GPForum::Web::SecurityEvent->new->record_event( $controller,
+        'address_ban_refusal',
+        { scope => $ban->{scope}, status => $HTTP_FORBIDDEN } );
+    GPForum::Web::Guard->new->address_banned($controller);
+
+    return 0;
+}
+
+# Whether a ban of this scope refuses the write request on this route.
+sub refuses ( $self, $scope, $route ) {
+    my $name = $route // q{};
+    return 0 if !defined $scope || exists $ALWAYS_OPEN{$name};
+    return 1 if $scope eq 'writes';
+    return 1 if $scope eq 'sign_in' && exists $SIGN_IN{$name};
+
+    return exists $REGISTRATION{$name} ? 1 : 0;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+GPForum::Web::AddressBans - The one place a banned address is refused.
+
+=head1 VERSION
+
+Version 0.001.
+
+=head1 SYNOPSIS
+
+    # Web::ClientAddress->register wraps every write action:
+    my $allowed =
+      await GPForum::Web::AddressBans->new->admits_p( $controller, $client );
+    return $allowed ? $next->() : 0;
+
+=head1 DESCRIPTION
+
+ADR 0146. Every write request -- any method but GET, HEAD and OPTIONS --
+asks L<GPForum::Service::Admin::AddressBans/covering_p> which live ban covers
+the client L<GPForum::Web::ClientAddress> found for it, and is refused with
+a plain 403 when that ban's scope covers the route: a registration ban the
+registration, a sign-in ban the registration and the sign-in, password reset
+and second step, a writes ban every write. Signing out, the language and
+theme, the one-click unsubscribe, the privacy requests and the console's ban
+forms are never refused. A refusal is counted as the security event
+C<address_ban_refusal>.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 requires_lookup
+
+True for a write that is not exempt. The dispatch hook uses this pure check
+to admit reads without creating asynchronous work.
+
+=head2 refuses
+
+Takes a scope and a route name. True when a ban of that scope refuses a
+write on that route.
+
+=head2 admits_p
+
+Takes the controller and its client address. Resolves true when the
+request may go on, and false once the refusal has been rendered. Safe
+methods and exempt routes make no lookup; a covered write awaits it.
+
+=head1 DIAGNOSTICS
+
+A failed lookup is logged as a warning and the request goes on.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+L<GPForum::Web::Guard>, L<GPForum::Web::SecurityEvent>.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+Each write costs one indexed lookup; reads cost nothing.
+
+=head1 AUTHOR
+
+GPForum Contributors.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2026 GPForum Contributors. Released under the BSD-3-Clause
+license.
+
+=cut

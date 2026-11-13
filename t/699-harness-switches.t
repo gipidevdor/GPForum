@@ -43,9 +43,8 @@ is( $status, 0, 'prove in this checkout honors HARNESS_PERL_SWITCHES' )
 
 my $coverage = path('script/coverage')->slurp;
 ok(
-    index( $coverage,
-        'HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove' )
-      >= 0,
+    index( $coverage, 'HARNESS_PERL_SWITCHES="-MDevel::Cover -Iscript/lib' ) >=
+      0,
     'script/coverage loads Devel::Cover through the harness switches'
 );
 unlike( $coverage, qr/--exec/msx,

@@ -17,14 +17,16 @@ rm -rf cover_db
 # environment, so nothing has to load ahead of Devel::Cover: an explicit
 # interpreter for prove would ignore these switches and leave no database,
 # and a module preloaded before Devel::Cover is reported as never run
-# (t/699).
+# (t/699). Its adapter loads after it: tooling, not lib/, it keeps
+# Devel::Cover's deparse warnings and its reports at exec out of the tests.
 #
 # t/ and t/integration, not t/performance: those tests drive the harness of
 # script/lib/ -- which the report below does not select -- in timed child
 # processes that Devel::Cover slowed past their deadlines and whose JSON it
 # interleaved with its own output, so the first run that finished failed on
 # them. They run uninstrumented in CI's lint job.
-HARNESS_PERL_SWITCHES=-MDevel::Cover "$gpforum_carton" exec prove -l t t/integration "$@"
+HARNESS_PERL_SWITCHES="-MDevel::Cover -Iscript/lib -MGPForum::Quality::CoverAdapter" \
+    "$gpforum_carton" exec prove -l t t/integration "$@"
 
 # The report covers lib/ only: the test files execute almost entirely, and
 # counting them would inflate its denominator.

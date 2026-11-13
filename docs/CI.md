@@ -202,7 +202,11 @@ The ADR index check is new as a step of its own; it also runs inside
 `t/integration/`, not `t/performance/`: those tests drive the harness of
 `script/lib/`, which the report does not select, in timed child processes
 that Devel::Cover slowed past their deadlines, and they failed the first
-coverage run that finished. The coverage database is uploaded as one archive,
+coverage run that finished. `GPForum::Quality::CoverAdapter` loads after
+Devel::Cover: it names Future::AsyncAwait ops for B::Deparse, which otherwise
+warned on every report, and skips the report a forked child writes before it
+execs, which deparsed the whole application while the test waited for the
+program it started. The coverage database is uploaded as one archive,
 `cover_db.tar.gz`; the upload action could not walk its thousands of files.
 
 ## Running the gates locally

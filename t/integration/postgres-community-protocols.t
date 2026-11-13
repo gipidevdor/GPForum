@@ -24,7 +24,7 @@ use GPForum::Test::ReplacedSubs qw(with_replaced_subs);
 use IO::Socket::INET;
 use IO::Socket::SSL;
 use Time::HiRes ();
-use POSIX       qw(_exit);
+use POSIX       qw(_exit WNOHANG);
 use GPForum::Service::Discovery::Gemini;
 use GPForum::Service::Forum::Viewer;
 use GPForum::Infrastructure::Row;
@@ -38,7 +38,10 @@ const my $LEGACY_BATCH_SIZE => 120;
 
 # Cold CLI startup competes with the parallel database tests. Keep its
 # bounded readiness window separate from each short TLS handshake timeout.
-const my $TLS_START_ATTEMPTS  => 200;
+# The window is time, not attempts: a refused connection returns at once, so
+# 200 attempts lasted ten seconds on a loaded runner, and a server that has
+# already exited ends the wait early.
+const my $TLS_START_SECONDS   => 60;
 const my $TLS_RETRY_DELAY     => 0.05;
 const my $TLS_CONNECT_TIMEOUT => 0.2;
 
@@ -388,18 +391,7 @@ sub _gemini_tls {
     my $pid = _spawn_gemini( $port, $cert, $key, $log );
     my $failure;
     try {
-        my $client;
-        for ( 1 .. $TLS_START_ATTEMPTS ) {
-            $client = IO::Socket::SSL->new(
-                PeerAddr        => '127.0.0.1',
-                PeerPort        => $port,
-                SSL_verify_mode => 0,
-                SSL_version     => 'TLSv1_2',
-                Timeout         => $TLS_CONNECT_TIMEOUT
-            );
-            last if $client;
-            Time::HiRes::sleep($TLS_RETRY_DELAY);
-        }
+        my $client = _connect_tls( $port, $pid );
         ok( $client, 'Gemini listener accepts TLS 1.2' );
         if ($client) {
             print {$client} "gemini://forum.example:$port/t/$thread\r\n"
@@ -419,6 +411,25 @@ sub _gemini_tls {
     kill 'TERM', $pid;
     waitpid $pid, 0;
     if ( defined $failure ) { fail("Gemini TLS test: $failure"); }
+    return;
+}
+
+# Retries until the listener answers, the deadline passes or the server it
+# waits for has already exited.
+sub _connect_tls ( $port, $pid ) {
+    my $deadline = Time::HiRes::time() + $TLS_START_SECONDS;
+    while ( Time::HiRes::time() < $deadline ) {
+        my $client = IO::Socket::SSL->new(
+            PeerAddr        => '127.0.0.1',
+            PeerPort        => $port,
+            SSL_verify_mode => 0,
+            SSL_version     => 'TLSv1_2',
+            Timeout         => $TLS_CONNECT_TIMEOUT
+        );
+        return $client if $client;
+        return         if waitpid( $pid, WNOHANG ) == $pid;
+        Time::HiRes::sleep($TLS_RETRY_DELAY);
+    }
     return;
 }
 

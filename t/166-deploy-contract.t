@@ -25,8 +25,13 @@ use GPForum::Service::Operations::DeployContract qw(
 
 our $VERSION = '0.001';
 
-const my $EXPECTED_TESTS  => 33;
-const my $ENTROPY_SECONDS => 5;
+const my $EXPECTED_TESTS => 33;
+
+# A pipeline that ignores SIGPIPE and never ends hangs for good, so the
+# deadline only has to be finite: it is generous because the scheduled
+# coverage run (Devel::Cover, four jobs and PostgreSQL on one runner) took
+# more than five seconds to fork and plan.
+const my $ENTROPY_SECONDS => 60;
 const my $HOST_UNITS      => 3;
 
 const my $FRESH_CHECK  => 'script/fresh-checkout-check';
@@ -206,7 +211,8 @@ sub _bounded_entropy {
     }
     catch ($error) { $failure = $error; };
     ok( !defined $failure, 'the plan completes within its deadline' )
-      or diag "$failure";
+      or diag "$failure after "
+      . sprintf( '%.1f', $result{elapsed_seconds} // 0 ) . ' s';
     if ( $result{timed_out} ) {
         BAIL_OUT('fresh-checkout entropy did not terminate');
     }

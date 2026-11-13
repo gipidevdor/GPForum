@@ -16,6 +16,7 @@ use lib 'lib', 't/lib';
 use GPForum::OS::Reactor;
 use GPForum;
 use GPForum::Test::CommandIdempotency;
+use GPForum::Test::CommunityFunctions;
 use GPForum::Test::PostFragmentServices;
 my $app = GPForum->new;
 my $services = GPForum::Test::PostFragmentServices->new;
@@ -32,6 +33,9 @@ for my $helper (qw(
 $app->helper(gp_command_idempotency => sub {
     return GPForum::Test::CommandIdempotency->new;
 });
+# Community commands are one api.* call each (ADR 0177): their double hands
+# each write to the same services.
+GPForum::Test::CommunityFunctions->install($app, sink => $services);
 $app->routes->get('/__browser/session/:user')->to(cb => sub ($c) {
     $c->session(user_id => $c->param('user'));
     return $c->render(text => 'ready');

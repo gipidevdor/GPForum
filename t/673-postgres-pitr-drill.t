@@ -479,6 +479,7 @@ package GPForum::Test::PITRProcessFailure {    ## no critic (Modules::ProhibitMu
         my $pid = fork;
         croak 'Cannot fork owned process fixture' if !defined $pid;
         if ( !$pid ) {
+            local @SIG{qw(TERM INT)} = qw(DEFAULT DEFAULT);
             setsid();
             exec {$EXECUTABLE_NAME} $EXECUTABLE_NAME, '-e', 'sleep 60'
               or POSIX::_exit(1);

@@ -111,6 +111,10 @@ sub _spawn ( $command, $capture, $options ) {
     my $pid = fork;
     croak "Cannot fork benchmark: $OS_ERROR" if !defined $pid;
     return $pid                              if $pid;
+
+    # A caller's TERM handler (the PITR drill's croaks) must not run here: a
+    # signal before exec would resume the caller's code in this child.
+    local @SIG{qw(TERM INT)} = qw(DEFAULT DEFAULT);
     setsid() >= 0    or POSIX::_exit(CHILD_FAILURE);
     chdir root_dir() or POSIX::_exit(CHILD_FAILURE);
     local %ENV = %{ $options->{env} // \%ENV };

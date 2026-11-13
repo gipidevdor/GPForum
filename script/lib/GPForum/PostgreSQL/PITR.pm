@@ -567,6 +567,10 @@ sub _start ( $self, $log_name ) {
     my $pid  = fork;
     croak 'Cannot fork owned PostgreSQL server' if !defined $pid;
     if ( !$pid ) {
+
+        # run's TERM handler croaks: inherited, a signal before exec would
+        # resume the drill in this child instead of ending it.
+        local @SIG{qw(TERM INT)} = qw(DEFAULT DEFAULT);
         setsid() >= 0 or POSIX::_exit(CHILD_FAILURE);
         local %ENV = %{ $self->{env} };
         open STDOUT, '>', File::Spec->catfile( $self->{workdir}, $log_name )
